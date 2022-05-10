@@ -3,12 +3,12 @@
 
 # PyBullet UR-5 from https://github.com/josepdaniel/UR5Bullet
 
-import torch
 import numpy as np
 import gym
 import argparse, random
 from ppo import PPO
 from gym_env import ur5GymEnv
+import torch
 
 title = 'PyBullet UR-5'
 

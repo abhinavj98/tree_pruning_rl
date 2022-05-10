@@ -17,9 +17,9 @@ import pybullet_data
 from datetime import datetime
 import pybullet_data
 from collections import namedtuple
-from attrdict import AttrDict
+#from attrdict import AttrDict
 
-ROBOT_URDF_PATH = "./ur_e_description/urdf/ur5e.urdf"
+ROBOT_URDF_PATH = "./ur_e_description/urdf/ur5e_with_camera.urdf"
 TABLE_URDF_PATH = os.path.join(pybullet_data.getDataPath(), "table/table.urdf")
 CUBE_URDF_PATH = os.path.join(pybullet_data.getDataPath(), "cube_small.urdf")
 
@@ -44,9 +44,11 @@ class ur5GymEnv(gym.Env):
                  maxSteps=100,
                  # numControlledJoints=3, # XYZ, we use IK here!
                  simulatedGripper=False,
-                 randObjPos=False,
+                 randObjPos=True,
                  task=0, # here target number
-                 learning_param=0):
+                 learning_param=0,
+                 width = 424,
+                 height = 240):
 
         self.renders = renders
         self.actionRepeat = actionRepeat
@@ -72,8 +74,10 @@ class ur5GymEnv(gym.Env):
         self.control_joints = ["shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint", "wrist_1_joint", "wrist_2_joint", "wrist_3_joint"]
         self.joint_type_list = ["REVOLUTE", "PRISMATIC", "SPHERICAL", "PLANAR", "FIXED"]
         self.joint_info = namedtuple("jointInfo", ["id", "name", "type", "lowerLimit", "upperLimit", "maxForce", "maxVelocity", "controllable"])
-
-        self.joints = AttrDict()
+        self.proj_mat = pybullet.computeProjectionMatrixFOV(
+            fov=42.0, aspect = width / height, nearVal=0.01,
+            farVal=10.0)
+        self.joints = dict()
         for i in range(self.num_joints):
             info = pybullet.getJointInfo(self.ur5, i)
             jointID = info[0]
@@ -177,8 +181,9 @@ class ur5GymEnv(gym.Env):
         self.ur5_or = [0.0, 1/2*math.pi, 0.0]
 
         # pybullet.addUserDebugText('X', self.obj_pos, [0,1,0], 1) # display goal
-        # if self.randObjPos:
-        # self.initial_obj_pos = [0.6+random.random()*0.1, 0.1+random.random()*0.1, 0.0]
+        if self.randObjPos:
+            self.initial_obj_pos = [0.6+(random.random()-0.5)*0.1, (random.random()-0.5)*0.5, 0.0]
+            #print(self.initial_obj_pos)
         pybullet.resetBasePositionAndOrientation(self.obj, self.initial_obj_pos, [0.,0.,0.,1.0]) # reset object pos
 
         # reset robot simulation and position:
@@ -206,7 +211,7 @@ class ur5GymEnv(gym.Env):
         # actuate: 
         joint_angles = self.calculate_ik(new_p, self.ur5_or) # XYZ and angles set to zero
         self.set_joint_angles(joint_angles)
-        
+        self.set_camera(cur_p[0], cur_p[1])
         # step simualator:
         for i in range(self.actionRepeat):
             pybullet.stepSimulation()
@@ -245,6 +250,17 @@ class ur5GymEnv(gym.Env):
         c = (self.terminated == True or self.stepCounter > self.maxSteps)
         return c
 
+    def set_camera(self, pose, orientation):
+        ##!!!!!!!!!!!!!!! Need to rewrite this
+        camMat = pybullet.getMatrixFromQuaternion(orientation)
+		#upVector = [0,0,1]
+        forwardVec = [camMat[0],camMat[3],camMat[6]]
+		#sideVec =  [camMat[1],camMat[4],camMat[7]]
+        camUpVec =  [camMat[2],camMat[5],camMat[8]]
+        camTarget = [pose[0]+forwardVec[0]*10,pose[1]+forwardVec[1]*10,pose[2]+forwardVec[2]*10]
+        camUpTarget = [pose[0]+camUpVec[0],pose[1]+camUpVec[1],pose[2]+camUpVec[2]]
+        viewMat = pybullet.computeViewMatrix(pose, camTarget, camUpVec)
+        pybullet.getCameraImage(320, 200, viewMatrix = viewMat, projectionMatrix = self.proj_mat, renderer = pybullet.ER_BULLET_HARDWARE_OPENGL)
 
     def compute_reward(self, achieved_goal, desired_goal, info):
         reward = np.zeros(1)

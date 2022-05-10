@@ -25,7 +25,7 @@ def get_args():
     # env
     # arg('--env_name', type=str, default='ur5GymEnv', help='environment name')
     arg('--render', action='store_true', default=False, help='render the environment')
-    arg('--randObjPos', action='store_true', default=False, help='fixed object position to pick up')
+    arg('--randObjPos', action='store_true', default=True, help='fixed object position to pick up')
     arg('--mel', type=int, default=100, help='max episode length')
     arg('--repeat', type=int, default=1, help='repeat action')
     arg('--simgrip', action='store_true', default=False, help='simulated gripper')
