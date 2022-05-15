@@ -34,6 +34,9 @@ class ActorCritic(nn.Module):
         super(ActorCritic, self).__init__()
         # action mean range -1 to 1
         self.vgg = models.vgg16(pretrained=True).to(device).eval()
+        for param in self.vgg.parameters():
+            param.requires_grad = False
+
         self.actor =  nn.Sequential(
                 nn.Linear(state_dim, emb_size),
                 nn.Tanh(),
