@@ -189,11 +189,12 @@ class ur5GymEnv(gym.Env):
         # reset robot simulation and position:
         joint_angles = (-0.34, -1.57, 1.80, -1.57, -1.57, 0.00) # pi/2 = 1.5707
         self.set_joint_angles(joint_angles)
-
         # step simualator:
         for i in range(100):
             pybullet.stepSimulation()
-
+        cur_p = self.get_current_pose()
+        rgbd = self.set_camera(cur_p[0], cur_p[1])
+        self.rgb,  self.depth = self.seperate_rgbd_rgb_d(rgbd)
         # get obs and return:
         self.getExtendedObservation()
         return self.observation
@@ -211,7 +212,9 @@ class ur5GymEnv(gym.Env):
         # actuate: 
         joint_angles = self.calculate_ik(new_p, self.ur5_or) # XYZ and angles set to zero
         self.set_joint_angles(joint_angles)
-        self.set_camera(cur_p[0], cur_p[1])
+        rgbd = self.set_camera(cur_p[0], cur_p[1])
+        self.rgb,  self.depth = self.seperate_rgbd_rgb_d(rgbd)
+        
         # step simualator:
         for i in range(self.actionRepeat):
             pybullet.stepSimulation()
@@ -260,7 +263,13 @@ class ur5GymEnv(gym.Env):
         camTarget = [pose[0]+forwardVec[0]*10,pose[1]+forwardVec[1]*10,pose[2]+forwardVec[2]*10]
         camUpTarget = [pose[0]+camUpVec[0],pose[1]+camUpVec[1],pose[2]+camUpVec[2]]
         viewMat = pybullet.computeViewMatrix(pose, camTarget, camUpVec)
-        pybullet.getCameraImage(320, 200, viewMatrix = viewMat, projectionMatrix = self.proj_mat, renderer = pybullet.ER_BULLET_HARDWARE_OPENGL)
+        return pybullet.getCameraImage(224, 224, viewMatrix = viewMat, projectionMatrix = self.proj_mat, renderer = pybullet.ER_BULLET_HARDWARE_OPENGL)
+
+    @staticmethod
+    def seperate_rgbd_rgb_d(rgbd):
+        rgb = rgbd[2][:,:,0:3].reshape(3,224,224)/255
+        depth = rgbd[3]
+        return rgb, depth
 
     def compute_reward(self, achieved_goal, desired_goal, info):
         reward = np.zeros(1)

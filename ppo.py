@@ -9,7 +9,7 @@ import torch.nn as nn
 from torch.distributions import MultivariateNormal
 import gym
 import numpy as np
-
+import torchvision.models as models    
 # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Memory:
@@ -33,6 +33,7 @@ class ActorCritic(nn.Module):
         self.device = device
         super(ActorCritic, self).__init__()
         # action mean range -1 to 1
+        self.vgg = models.vgg16(pretrained=True).to(device).eval()
         self.actor =  nn.Sequential(
                 nn.Linear(state_dim, emb_size),
                 nn.Tanh(),
@@ -58,7 +59,8 @@ class ActorCritic(nn.Module):
     def forward(self):
         raise NotImplementedError
     
-    def act(self, state, memory):
+    def act(self, rgb,  state, memory):
+        self.image_features = self.vgg.features(rgb).detach()
         action_mean = self.actor(state)
         cov_mat = torch.diag(self.action_var).to(self.device)
         
@@ -105,9 +107,10 @@ class PPO:
         
         self.MseLoss = nn.MSELoss()
     
-    def select_action(self, state, memory):
+    def select_action(self, rgb,  state, memory):
         state = torch.FloatTensor(state.reshape(1, -1)).to(self.device)
-        return self.policy_old.act(state, memory).cpu().data.numpy().flatten()
+        rgb = torch.FloatTensor(rgb).to(self.device)
+        return self.policy_old.act(rgb, state, memory).cpu().data.numpy().flatten()
     
     def update(self, memory):
         # Monte Carlo estimate of rewards:
@@ -152,3 +155,4 @@ class PPO:
             
         # Copy new weights into old policy:
         self.policy_old.load_state_dict(self.policy.state_dict())
+

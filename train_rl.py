@@ -108,7 +108,7 @@ def main():
         for t in range(args.mel):
             time_step += 1
 
-            action = ppo.select_action(state, memory)
+            action = ppo.select_action(env.rgb, state, memory)
             state, reward, done, _ = env.step(action)
             
             # Saving reward and is_terminals:
