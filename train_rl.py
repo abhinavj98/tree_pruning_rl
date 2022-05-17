@@ -33,7 +33,7 @@ def get_args():
     arg('--lp', type=float, default=0.1, help='learning parameter for task')
     # train:
     arg('--seed', type=int, default=987, help='random seed')
-    arg('--emb_size',   type=int, default=128, help='embedding size')
+    arg('--emb_size',   type=int, default=512, help='embedding size')
     arg('--solved_reward', type=int, default=0, help='stop training if avg_reward > solved_reward')
     arg('--log_interval', type=int, default=100, help='interval for log')
     arg('--save_interval', type=int, default=100, help='interval for saving model')
