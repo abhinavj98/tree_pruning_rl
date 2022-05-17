@@ -6,10 +6,10 @@
   <component name="ChangeListManager">
     <list default="true" id="58a774b9-5e92-40d7-9cc4-52db0d5af8fd" name="Changes" comment="">
       <change afterPath="$PROJECT_DIR$/ur_e_description/urdf/tree.urdf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/gym_env.py" beforeDir="false" afterPath="$PROJECT_DIR$/gym_env.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/test_robot.py" beforeDir="false" afterPath="$PROJECT_DIR$/test_robot.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/train_rl.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_rl.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ur_e_description/urdf/ur5e_with_camera.urdf" beforeDir="false" afterPath="$PROJECT_DIR$/ur_e_description/urdf/ur5e_with_camera.urdf" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
