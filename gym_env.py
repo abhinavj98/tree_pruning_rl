@@ -3,6 +3,13 @@
 
 # PyBullet UR-5 from https://github.com/josepdaniel/UR5Bullet
 
+import pygame
+import OpenGL
+from pygame.locals import *
+from OpenGL.GL import *
+from OpenGL.GLU import *
+import pywavefront
+
 import random
 import time
 import numpy as np
@@ -124,10 +131,26 @@ class ur5GymEnv(gym.Env):
         self.reset()
         high = np.array([10] * self.observation.shape[0])
         self.observation_space = spaces.Box(-high, high, dtype='float32')
+        self.scene = pywavefront.Wavefront('tree.obj', collect_faces=True)
 
-        
+
 
     def getTreePoints(self, count):
+
+        tree_oreint = pybullet.getQuaternionFromEuler([0,0,1.514])
+        point=[]
+        colSphereId = pybullet.createCollisionShape(pybullet.GEOM_SPHERE, radius=.005)
+        visualShapeId = pybullet.createVisualShape(pybullet.GEOM_SPHERE, radius=.005,rgbaColor =[1,0,0,1])
+
+        for i in range(count):
+
+            scene_box = self.scene.vertices[i]
+
+            tree_w_frame = pybullet.multiplyTransforms([-.5,0,-.5],tree_oreint,[scene_box[0]*.1,scene_box[1]*.1,scene_box[2]*.1],[0,0,0,1])
+            position=[tree_w_frame[0][0],tree_w_frame[0][1],tree_w_frame[0][2],0]
+            point.append(position)
+            sphereUid = pybullet.createMultiBody(0.0, colSphereId, visualShapeId, [position[0],position[1],position[2]], [0,0,0,1])
+        return point
 
 
     def set_joint_angles(self, joint_angles):
