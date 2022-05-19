@@ -26,7 +26,7 @@ def get_args():
     # env
     # arg('--env_name', type=str, default='ur5GymEnv', help='environment name')
     arg('--render', action='store_true', default=False, help='render the environment')
-    arg('--randObjPos', action='store_true', default=False, help='fixed object position to pick up')
+    arg('--randObjPos', action='store_true', default=True, help='fixed object position to pick up')
     arg('--mel', type=int, default=100, help='max episode length')
     arg('--repeat', type=int, default=1, help='repeat action')
     arg('--simgrip', action='store_true', default=False, help='simulated gripper')
@@ -61,13 +61,6 @@ args = get_args()  # Holds all the input arguments
 np.set_printoptions(precision=2)
 torch.set_printoptions(profile="full", precision=2)
 
-# Color Palette
-CP_R = '\033[31m'
-CP_G = '\033[32m'
-CP_B = '\033[34m'
-CP_Y = '\033[33m'
-CP_C = '\033[0m'
-
 
 def write_file(filepath, data, mode):
     f = open(filepath, mode)
@@ -84,7 +77,6 @@ print('Using device:', 'cuda' if args.cuda else 'cpu', ', device number:', args.
 
 def main():
     args.env_name = title
-    print(CP_G + 'Environment name:', args.env_name, '' + CP_C)
 
     if not os.path.exists(args.save_dir):
         os.mkdir(args.save_dir)
@@ -117,6 +109,7 @@ def main():
 
             action = ppo.select_action(state, memory)
             state, reward, done, _ = env.step(action)
+            # print("state , reward", state, reward, action)
 
             # Saving reward and is_terminals:
             memory.rewards.append(reward)

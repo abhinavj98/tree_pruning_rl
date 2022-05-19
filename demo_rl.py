@@ -67,7 +67,7 @@ for ep in range(1, args.n_episodes+1):
     for t in range(args.mel):
         state = torch.FloatTensor(state.reshape(1, -1)).to(args.device)
         action = ppo.policy_old.actor(state)
-        action = action.data.numpy().flatten()
+        action = action.data.cpu().numpy().flatten()
         state, reward, done, _ = env.step(action)
         ep_reward += reward
 

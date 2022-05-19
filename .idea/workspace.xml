@@ -5,9 +5,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="58a774b9-5e92-40d7-9cc4-52db0d5af8fd" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/ppo_new.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo_rl.py" beforeDir="false" afterPath="$PROJECT_DIR$/demo_rl.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/gym_env.py" beforeDir="false" afterPath="$PROJECT_DIR$/gym_env.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test_robot.py" beforeDir="false" afterPath="$PROJECT_DIR$/test_robot.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/saved_rl_models/spin3d.exe" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/train_rl.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_rl.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -26,13 +29,13 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;D:/academic/osu/spring2022/project/tree_pruning_rl&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "last_opened_file_path": "E:/tree_pruning_rl-master"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="D:\academic\osu\spring2022\project\tree_pruning_rl" />

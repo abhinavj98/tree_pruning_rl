@@ -54,7 +54,7 @@ class ur5GymEnv(gym.Env):
                  maxSteps=100,
                  # numControlledJoints=3, # XYZ, we use IK here!
                  simulatedGripper=False,
-                 randObjPos=True,
+                 randObjPos=False,
                  task=0,  # here target number
                  learning_param=0,
                  width=424,
@@ -232,12 +232,15 @@ class ur5GymEnv(gym.Env):
         return self.observation
 
     def step(self, action):
+
         action = np.array(action)
         arm_action = action[0:self.action_dim - 1].astype(float)  # dX, dY, dZ - range: [-1,1]
+        print("arm action", arm_action)
         gripper_action = action[self.action_dim - 1].astype(float)  # gripper - range: [-1=closed,1=open]
 
         # get current position:
         cur_p = self.get_current_pose()
+        print("ppppppppp",cur_p)
         # add delta position:
         new_p = np.array(cur_p[0]) + arm_action
         # actuate:
