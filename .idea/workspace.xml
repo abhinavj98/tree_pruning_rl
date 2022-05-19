@@ -5,12 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="58a774b9-5e92-40d7-9cc4-52db0d5af8fd" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/ppo_new.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/demo_rl.py" beforeDir="false" afterPath="$PROJECT_DIR$/demo_rl.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/gym_env.py" beforeDir="false" afterPath="$PROJECT_DIR$/gym_env.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/saved_rl_models/spin3d.exe" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/train_rl.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_rl.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
