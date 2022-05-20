@@ -40,22 +40,22 @@ class ActorCritic(nn.Module):
         emb_ds = int(emb_size/4)
         self.actor =  nn.Sequential(
                 nn.Linear(state_dim, emb_size),
-                nn.Tanh(),
+                nn.ReLU(),
                 nn.Linear(emb_size, emb_size),
-                nn.Tanh(),
+                nn.ReLU(),
                 nn.Linear(emb_size, emb_ds),
-                nn.Tanh(),
+                nn.ReLU(),
                 nn.Linear(emb_ds, action_dim),
                 nn.Tanh()
                 )
         # critic
         self.critic = nn.Sequential(
                 nn.Linear(state_dim, emb_size),
-                nn.Tanh(),
+                nn.ReLU(),
                 nn.Linear(emb_size, emb_size),
-                nn.Tanh(),
+                nn.ReLU(),
                 nn.Linear(emb_size, emb_ds),
-                nn.Tanh(),
+                nn.ReLU(),
                 nn.Linear(emb_ds, 1)
                 )
         self.action_var = torch.full((action_dim,), action_std*action_std).to(self.device)
@@ -64,7 +64,9 @@ class ActorCritic(nn.Module):
         raise NotImplementedError
     
     def act(self, rgb,  state, memory):
-        self.image_features = self.vgg.features(rgb).detach()
+        self.image_features = self.vgg.features(rgb.unsqueeze(0)).detach()
+        self.image_features = torch.nn.functional.avg_pool2d(self.image_features,7)
+        #print(self.image_features.shape)
         state = torch.cat((self.image_features.view(-1).unsqueeze(0), state, state, state),1)
         action_mean = self.actor(state)
         cov_mat = torch.diag(self.action_var).to(self.device)
@@ -102,7 +104,7 @@ class PPO:
         self.env = env
         self.device = self.args.device
 
-        self.state_dim = self.env.observation_space.shape[0]*3 + 512*49 #!!!Get this right
+        self.state_dim = self.env.observation_space.shape[0]*3 + 512  #!!!Get this right
         self.action_dim = self.env.action_space.shape[0]
         
         self.policy = ActorCritic(self.device ,self.state_dim, self.args.emb_size, self.action_dim, self.args.action_std).to(self.device)

@@ -26,7 +26,7 @@ def get_args():
     # arg('--env_name', type=str, default='ur5GymEnv', help='environment name')
     arg('--render', action='store_true', default=False, help='render the environment')
     arg('--randObjPos', action='store_true', default=True, help='fixed object position to pick up')
-    arg('--mel', type=int, default=100, help='max episode length')
+    arg('--mel', type=int, default=60, help='max episode length')
     arg('--repeat', type=int, default=1, help='repeat action')
     arg('--simgrip', action='store_true', default=False, help='simulated gripper')
     arg('--task', type=int, default=0, help='task to learn: 0 move, 1 pick-up, 2 drop')
@@ -36,11 +36,11 @@ def get_args():
     arg('--emb_size',   type=int, default=512, help='embedding size')
     arg('--solved_reward', type=int, default=0, help='stop training if avg_reward > solved_reward')
     arg('--log_interval', type=int, default=100, help='interval for log')
-    arg('--save_interval', type=int, default=100, help='interval for saving model')
-    arg('--max_episodes', type=int, default=2500, help='max training episodes')
+    arg('--save_interval', type=int, default=10000, help='interval for saving model')
+    arg('--max_episodes', type=int, default=250000, help='max training episodes')
     arg('--update_timestep', type=int, default=1000, help='update policy every n timesteps')
     arg('--action_std', type=float, default=1.0, help='constant std for action distribution (Multivariate Normal)')
-    arg('--K_epochs', type=int, default=100, help='update policy for K epochs')
+    arg('--K_epochs', type=int, default=20, help='update policy for K epochs')
     arg('--eps_clip', type=float, default=0.2, help='clip parameter for PPO')
     arg('--gamma', type=float, default=0.99, help='discount factor')
     arg('--lr', type=float, default=1e-3, help='parameters for Adam optimizer')
@@ -50,7 +50,7 @@ def get_args():
     arg('--save_dir', type=str, default='saved_rl_models/', help='path to save the models')
     arg('--cuda', dest='cuda', action='store_true', default=False, help='Use cuda to train model')
     arg('--device_num', type=str, default=0,  help='GPU number to use')
-
+    arg('--load_checkpoint', type = 'store_true', default = False, help = 'load a trained model for retraining' )
     args = parser.parse_args()
     return args
 
@@ -135,8 +135,8 @@ def main():
         
         # save every few episodes
         if i_episode % args.save_interval == 0:
-            torch.save(ppo.policy.state_dict(), args.save_dir+'/model_epoch_'+str(int(i_episode/args.save_interval))+'.pth')
-            
+            torch.save(ppo.policy.state_dict(), args.save_dir+'/actor_model_epoch_'+str(int(i_episode/args.save_interval))+'.pth')
+            torch.save(ppo.policy_old.state_dict(),args.save_dir + '/critic_model_epoch_' + str(int(i_episode / args.save_interval)) + '.pth')
         # logging
         if i_episode % args.log_interval == 0:
             avg_length = int(avg_length/args.log_interval)

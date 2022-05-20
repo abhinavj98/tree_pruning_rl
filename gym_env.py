@@ -208,7 +208,7 @@ class ur5GymEnv(gym.Env):
         # get current position:
         cur_p = self.get_current_pose()
         # add delta position:
-        new_p = np.array(cur_p[0]) + arm_action
+        new_p = np.array(cur_p[0]) + 0.2*arm_action
         # actuate: 
         joint_angles = self.calculate_ik(new_p, self.ur5_or) # XYZ and angles set to zero
         self.set_joint_angles(joint_angles)
@@ -291,11 +291,12 @@ class ur5GymEnv(gym.Env):
         # task 0: reach object:
         if self.target_dist < self.learning_param:# and approach_velocity < 0.05:
             self.terminated = True
+            reward+=10
             # print('Successful!')
 
         # penalize if it tries to go lower than desk / platform collision:
-        # if grip_trans[1] < self.desired_goal[1]-0.08: # lower than position of object!
-            # reward[i] += -1
+        if grip_pos[1] < self.desired_goal[1]-0.08: # lower than position of object!
+            reward += -10           #Atharva- check if this works
             # print('Penalty: lower than desk!')
 
         # check collisions:

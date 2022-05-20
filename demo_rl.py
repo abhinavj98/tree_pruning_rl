@@ -6,7 +6,7 @@
 import numpy as np
 import gym
 import argparse, random
-from ppo import PPO
+from ppo import PPO, Memory
 from gym_env import ur5GymEnv
 import torch
 
@@ -19,7 +19,7 @@ def get_args():
     # env
     # arg('--env_name', type=str, default='ur10GymEnv', help='environment name')
     arg('--render', action='store_true', default=False, help='render the environment')
-    arg('--randObjPos', action='store_true', default=False, help='fixed object position to pick up')
+    arg('--randObjPos', action='store_true', default=True, help='fixed object position to pick up')
     arg('--mel', type=int, default=100, help='max episode length')
     arg('--repeat', type=int, default=1, help='repeat action')
     arg('--simgrip', action='store_true', default=False, help='simulated gripper')
@@ -27,7 +27,7 @@ def get_args():
     arg('--lp', type=float, default=0.1, help='learning parameter for task')
     # train:
     arg('--seed', type=int, default=987, help='random seed')
-    arg('--emb_size',   type=int, default=128, help='embedding size')
+    arg('--emb_size',   type=int, default=512  , help='embedding size')
     arg('--n_episodes', type=int, default=100, help='max training episodes')
     arg('--action_std', type=float, default=0.25, help='constant std for action distribution (Multivariate Normal)')
     arg('--K_epochs', type=int, default=100, help='update policy for K epochs')
@@ -35,12 +35,16 @@ def get_args():
     arg('--gamma', type=float, default=0.99, help='discount factor')
     arg('--lr', type=float, default=1e-3, help='parameters for Adam optimizer')
     arg('--betas', type=float, default=(0.9, 0.999), help='')
-
+    arg('--cuda', dest='cuda', action='store_true', default=False, help='Use cuda to train model')
+    arg('--device_num', type=str, default=0, help='GPU number to use')
     args = parser.parse_args()
     return args
 
 args = get_args() # Holds all the input arguments
 print(args)
+
+args.device = torch.device('cuda:'+str(args.device_num) if args.cuda else 'cpu')
+print('Using device:', 'cuda' if args.cuda else 'cpu', ', device number:', args.device_num, ', GPUs in system:', torch.cuda.device_count())
 
 # create the environment
 print(title)
@@ -52,22 +56,25 @@ env = ur5GymEnv(renders=args.render, maxSteps=args.mel,
 env.seed(args.seed)
 torch.manual_seed(args.seed)
 
-args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+#args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # memory = Memory()
 ppo = PPO(args, env)
 
 print('Loading model:', args.trained_file)
 ppo.policy_old.load_state_dict(torch.load(args.trained_file))
-
+ppo.policy_old.to()
+memory = Memory()
 # running test:
 for ep in range(1, args.n_episodes+1):
     ep_reward = 0
     state = env.reset()
     for t in range(args.mel):
         state = torch.FloatTensor(state.reshape(1, -1)).to(args.device)
-        action = ppo.policy_old.actor(state)
-        action = action.data.numpy().flatten()
+        rgb = torch.FloatTensor(env.rgb).to(args.device)
+        #state = torch.FloatTensor(state.reshape(1, -1)).to(args.device)
+        action = ppo.policy_old.act(rgb, state, memory)
+        action = action.data.cpu().numpy().flatten()
         state, reward, done, _ = env.step(action)
         ep_reward += reward
 
