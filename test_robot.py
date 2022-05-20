@@ -11,10 +11,9 @@ from random import randint
 import torch
 from argparse import ArgumentParser
 import gym
-from gym_env import ur5GymEnv
+from gym_env_discrete import ur5GymEnv
 
 title = 'PyBullet UR5 robot'
-
 
 def get_args():
     parser = ArgumentParser(description=title)
@@ -38,8 +37,7 @@ def get_args():
     args = parser.parse_args()
     return args
 
-
-args = get_args()  # all input arguments
+args = get_args() # all input arguments
 
 np.set_printoptions(precision=2, suppress=True)
 torch.set_printoptions(profile="full", precision=2)
@@ -48,16 +46,16 @@ torch.set_printoptions(profile="full", precision=2)
 print(title)
 args.env_name = title
 env = ur5GymEnv(renders=args.render, maxSteps=args.mel,
-                actionRepeat=args.repeat, task=args.task, randObjPos=args.randObjPos,
-                simulatedGripper=args.simgrip, learning_param=args.lp)
+        actionRepeat=args.repeat, task=args.task, randObjPos=args.randObjPos,
+        simulatedGripper=args.simgrip, learning_param=args.lp)
 
 obs = env.reset()
 args.data_size = obs.shape[0]
 
-
 def main():
-    positions = [[-0.3, 0, 0, 0], [0, 0.6, 0, 0], [0, 0, -0.6, 0], [0, 0, 0, 0],
-                 [0, 0, -0.1, 0], [0, -0.1, 0, 0], [-0.1, 0, 0, 0], [0, 0, 0, 0]]
+
+    # positions = [[-0.3,0,0,0],[0,0.6,0,0],[0,0,-0.6,0],[0,0,0,0],
+    #              [0,0,-0.1,0],[0,-0.1,0,0],[-0.1,0,0,0],[0,0,0,0]]
     position= env.getTreePoints(1000)
 
     state = env.reset()
@@ -65,7 +63,8 @@ def main():
 
     for i in range(3):
         for t in range(1, args.mel):
-            p = int(t / 20)
+
+            p = int(t/20)
             action = positions[p]
             state, reward, env_done, info = env.step(action)
 
@@ -77,4 +76,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/tree_pruning_rl.iml" filepath="$PROJECT_DIR$/.idea/tree_pruning_rl.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/pybullet_PPO-ur5.iml" filepath="$PROJECT_DIR$/.idea/pybullet_PPO-ur5.iml" />
     </modules>
   </component>
 </project>
