@@ -54,6 +54,8 @@ class action(Enum):
     roll_down = 8
     pitch_up = 9
     pitch_down = 10
+    yaw_up = 11
+    yaw_down = 12
 
 class ur5GymEnv(gym.Env):
     def __init__(self,
@@ -118,7 +120,7 @@ class ur5GymEnv(gym.Env):
         self.simulatedGripper = simulatedGripper
         # discrete action
         # self.action_dim = 4
-        self.action_dim = 10
+        self.action_dim = 12
         self.stepCounter = 0
         self.maxSteps = maxSteps
         self.terminated = False
@@ -140,7 +142,9 @@ class ur5GymEnv(gym.Env):
                         'roll_up' : 7,
                         'roll_down': 8,
                         'pitch_up' : 9,
-                        'pitch_down' : 10}
+                        'pitch_down' : 10,
+                        'yaw_up' : 11,
+                        'yaw_down' : 12}
         self.reset()
         high = np.array([10]*self.observation.shape[0])
         self.observation_space = spaces.Box(-high, high, dtype='float32')
@@ -251,40 +255,46 @@ class ur5GymEnv(gym.Env):
 
     def step(self, action):
         #discrete action
-        deltaPose = np.array([0, 0, 0, 0, 0, 0])
+        deltaPose = np.array([0, 0, 0])
+        deltaorient= np.array([0, 0, 0])
         angle_scale = 2
-        step_size =  0.05
+        step_size =  0.05*2
 
         if action == self.actions['up']:
-            deltaPose = deltaPose + [step_size, 0, 0, 0, 0, 0]
+            deltaPose = [step_size, 0, 0,]
 
         if action == self.actions['down']:
-            deltaPose = deltaPose + [-step_size, 0, 0, 0, 0, 0]
+            deltaPose = [-step_size, 0, 0]
 
         if action == self.actions['left']:
-            deltaPose = deltaPose + [0, step_size, 0, 0, 0, 0]
+            deltaPose = [0, step_size, 0]
 
         if action == self.actions['right']:
-            deltaPose = deltaPose + [0, -step_size, 0, 0, 0, 0]
+            deltaPose = [0, -step_size, 0]
 
         if action == self.actions['forward']:
-            deltaPose = deltaPose + [0, 0, step_size, 0, 0, 0]
+            deltaPose = [0, 0, step_size]
 
         if action == self.actions['backward']:
-            deltaPose = deltaPose + [0, 0, -step_size, 0, 0, 0]
+            deltaPose = [0, 0, -step_size]
 
         if action == self.actions['roll_up']:
-            deltaPose = deltaPose + [0, 0, 0, 0, step_size / angle_scale, 0]
+            deltaOrient= [ step_size / angle_scale, 0, 0]
 
         if action == self.actions['roll_down']:
-            deltaPose = deltaPose + [0, 0, 0, 0, -step_size / angle_scale, 0]
+            deltaOrient= [ -step_size / angle_scale, 0, 0]
 
         if action == self.actions['pitch_up']:
-            deltaPose = deltaPose + [0, 0, 0, step_size / angle_scale, 0, 0]
+            deltaOrient= [0, step_size / angle_scale, 0]
 
         if action == self.actions['pitch_down']:
-            deltaPose = deltaPose + [0, 0, 0, -step_size / angle_scale, 0, 0]
+            deltaOrient= [0, -step_size / angle_scale, 0]
 
+        if action == self.actions['yaw_up']:
+            deltaOrient= [0, 0, step_size / angle_scale]
+
+        if action == self.actions['yaw_down']:
+            deltaOrient= [0, 0, -step_size / angle_scale]
         # action = np.array(action)
         # arm_action = action[0:self.action_dim-1].astype(float) # dX, dY, dZ - range: [-1,1]
         # gripper_action = action[self.action_dim-1].astype(float) # gripper - range: [-1=closed,1=open]
@@ -294,8 +304,8 @@ class ur5GymEnv(gym.Env):
         cur_p = self.get_current_pose()
         # add delta position:
         # new_p = np.array(cur_p[0]) + arm_action
-        new_position = np.array(cur_p[0]) + deltaPose[0:3]
-        new_oreintation=np.array(cur_p[1]) + pybullet.getQuaternionFromEuler(deltaPose[3:6])
+        new_position = np.array(cur_p[0]) + deltaPose
+        new_oreintation=np.array(cur_p[1]) + pybullet.getQuaternionFromEuler(deltaorient)
         # actuate:
 
         joint_angles = self.calculate_ik(new_position, new_oreintation) # XYZ and angles set to zero
@@ -307,7 +317,7 @@ class ur5GymEnv(gym.Env):
             if self.renders: time.sleep(1./240.)
 
         self.getExtendedObservation()
-        reward = self.compute_reward(self.achieved_goal, self.desired_goal, None)
+        reward = self.compute_reward(self.achieved_goal, self.achieved_orient, self.desired_goal, None)
         done = self.my_task_done()
 
         info = {'is_success': False}
@@ -324,7 +334,7 @@ class ur5GymEnv(gym.Env):
         # sensor values:
         # js = self.get_joint_angles()
 
-        tool_pos = self.get_current_pose()[0] # XYZ, no angles
+        tool_pos = self.get_current_pose()[0]# XYZ, no angles
         self.obj_pos,_ = pybullet.getBasePositionAndOrientation(self.obj)
         objects_pos = self.obj_pos
         goal_pos = self.obj_pos
@@ -332,6 +342,8 @@ class ur5GymEnv(gym.Env):
         self.observation = np.array(np.concatenate((tool_pos, objects_pos)))
         self.achieved_goal = np.array(np.concatenate((objects_pos, tool_pos)))
         self.desired_goal = np.array(goal_pos)
+        link_vals=pybullet.getLinkState(self.ur5, self.end_effector_index)
+        self.achieved_orient=link_vals[3]
 
 
     def my_task_done(self):
@@ -340,13 +352,22 @@ class ur5GymEnv(gym.Env):
         return c
 
 
-    def compute_reward(self, achieved_goal, desired_goal, info):
+    def compute_reward(self, achieved_goal, achieved_orient, desired_goal, info):
         reward = np.zeros(1)
+        [roll_a, pitch_a, yaw_a] = pybullet.getEulerFromQuaternion(achieved_orient)
+
+        x=desired_goal[0]-achieved_goal[3]
+        y=desired_goal[1]-achieved_goal[4]
+        z=desired_goal[2]-achieved_goal[5]
+        yaw_g = math.atan2(x,z)
+        temp= math.sqrt(math.pow(x,2)+math.pow(z,2))
+        pitch_g = math.atan2(temp,y)
 
         grip_pos = achieved_goal[-3:]
 
         self.target_dist = goal_distance(grip_pos, desired_goal)
         # print(grip_pos, desired_goal, self.target_dist)
+
 
         # check approach velocity:
         # tv = self.tool.getVelocity()
@@ -354,25 +375,31 @@ class ur5GymEnv(gym.Env):
 
         # print(approach_velocity)
         # input()
+        if (self.target_dist<=.05):
+            reward += (self.target_dist) *5
+        elif (self.target_dist<=.1 and self.target_dist>.05):
+            reward += (self.target_dist)
+        elif(self.target_dist<=.25 and self.target_dist>.1 ):
+            reward += (-self.target_dist)
+        elif (self.target_dist<=.45 and self.target_dist>.25):
+            reward += (-self.target_dist)*2
+        elif(self.target_dist<=.65 and self.target_dist>.45 ):
+            reward += (-self.target_dist) * 4
+        else:
+            reward += (-self.target_dist) * 10
 
-        reward += -self.target_dist * 10
 
         # task 0: reach object:
         if self.target_dist < self.learning_param:# and approach_velocity < 0.05:
             self.terminated = True
-            # print('Successful!')
+            reward += 1000
 
-        # penalize if it tries to go lower than desk / platform collision:
-        # if grip_trans[1] < self.desired_goal[1]-0.08: # lower than position of object!
-            # reward[i] += -1
-            # print('Penalty: lower than desk!')
 
         # check collisions:
         if self.check_collisions():
-            reward += -1
+            reward += -10
             # print('Collision!')
 
         # print(target_dist, reward)
         # input()
-
         return reward

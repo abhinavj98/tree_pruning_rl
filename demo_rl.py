@@ -27,10 +27,10 @@ def get_args():
     arg('--lp', type=float, default=0.1, help='learning parameter for task')
     # train:
     arg('--seed', type=int, default=987, help='random seed')
-    arg('--emb_size',   type=int, default=512, help='embedding size')
-    arg('--n_episodes', type=int, default=100, help='max training episodes')
+    arg('--emb_size',   type=int, default=256, help='embedding size')
+    arg('--n_episodes', type=int, default=5000, help='max training episodes')
     arg('--action_std', type=float, default=0.25, help='constant std for action distribution (Multivariate Normal)')
-    arg('--K_epochs', type=int, default=100, help='update policy for K epochs')
+    arg('--K_epochs', type=int, default=1000, help='update policy for K epochs')
     arg('--eps_clip', type=float, default=0.2, help='clip parameter for PPO')
     arg('--gamma', type=float, default=0.99, help='discount factor')
     arg('--lr', type=float, default=1e-3, help='parameters for Adam optimizer')
