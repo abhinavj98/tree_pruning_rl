@@ -14,9 +14,8 @@ import pickle
 import torch
 import gym
 import random
-from ppo import PPO, Memory, ActorCritic
+from ppo import PPO, Memory, ActorCritic, AutoEncoder
 from gym_env import ur5GymEnv
-
 title = 'PyBullet UR5 robot'
 
 def get_args():
@@ -50,7 +49,7 @@ def get_args():
     arg('--save_dir', type=str, default='saved_rl_models/', help='path to save the models')
     arg('--cuda', dest='cuda', action='store_true', default=False, help='Use cuda to train model')
     arg('--device_num', type=str, default=0,  help='GPU number to use')
-    arg('--load_checkpoint', type = 'store_true', default = False, help = 'load a trained model for retraining' )
+    arg('--load_checkpoint', action = 'store_true', default = False, help = 'load a trained model for retraining' )
     args = parser.parse_args()
     return args
 
@@ -58,7 +57,8 @@ args = get_args() # Holds all the input arguments
 
 np.set_printoptions(precision=2)
 torch.set_printoptions(profile="full", precision=2)
-
+a = AutoEncoder()
+print(a)
 # Color Palette
 CP_R = '\033[31m'
 CP_G = '\033[32m'

@@ -28,6 +28,49 @@ class Memory:
         del self.is_terminals[:]
 
 
+class AutoEncoder(nn.Module):
+    def __init__(self):
+        super(AutoEncoder, self).__init__()
+        self.encoder = nn.Sequential(
+            nn.Conv2d(4, 16, 3, padding='same'),  # b, 16, 224, 224
+            nn.ReLU(),
+            nn.Conv2d(16, 32, 3, padding=1, stride = 2),  # b, 32, 112, 112
+            nn.ReLU(),
+            nn.Conv2d(32, 64, 3, padding='same'),  #  b, 64, 112, 112
+            nn.ReLU(),
+            nn.Conv2d(64, 64, 3, padding=1, stride = 2),  #  b, 64, 56, 56
+            nn.ReLU(),
+            nn.Conv2d(64, 128, 3, padding='same'),  #  b, 128, 56, 56
+            nn.ReLU(),
+            nn.Conv2d(128, 256, 3, padding=1, stride = 2),  #  b, 256, 28, 28
+            nn.ReLU(),
+            nn.Conv2d(256, 512, 3, stride=2, padding=1),  # b, 256,14,14
+            nn.ReLU(),
+            nn.Conv2d(512, 1024, 3, stride=2, padding=1),  # b, 256,7,7
+            nn.ReLU()
+        )
+      
+        self.decoder = nn.Sequential(
+            nn.ConvTranspose2d(1024, 512, 3, stride=2, output_padding=1, padding = 1), # 256. 14, 14
+            nn.ReLU(),
+            nn.ConvTranspose2d(512, 256, 3, stride=2, output_padding=1, padding=1),  # b, 256, 28, 28
+            nn.ReLU(),
+            nn.ConvTranspose2d(256, 128, 3, stride=2, output_padding=1, padding=1),  # b, 128, 56, 56
+            nn.ReLU(),
+            nn.ConvTranspose2d(128, 64, 3, stride=2, output_padding=1, padding=1),  # b, 64, 112, 112
+            nn.ReLU(),
+            nn.ConvTranspose2d(64, 32, 3, stride=2, output_padding=1, padding=1),  # b, 32, 224, 224
+            nn.ReLU(),
+            nn.Conv2d(32, 4, 3, padding = 'same'),  # b, 4, 224, 224
+            nn.ReLU()
+        )
+
+    def forward(self, x):
+        x = self.encoder(x)
+        x = self.decoder(x)
+        return x
+
+
 class ActorCritic(nn.Module):
     def __init__(self, device, state_dim, emb_size, action_dim, action_std):
         self.device = device
