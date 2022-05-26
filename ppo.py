@@ -9,9 +9,10 @@ import torch.nn as nn
 from torch.distributions import MultivariateNormal
 import gym
 import numpy as np
-import torchvision.models as models    
+import torchvision.models as models 
+from torch.utils.data import TensorDataset, DataLoader   
 # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
+torch.autograd.set_detect_anomaly(True)
 class Memory:
     def __init__(self):
         self.actions = []
@@ -19,14 +20,17 @@ class Memory:
         self.logprobs = []
         self.rewards = []
         self.is_terminals = []
-    
+        self.rgbd = []
+        self.rgbd_recon = []
     def clear_memory(self):
         del self.actions[:]
         del self.states[:]
         del self.logprobs[:]
         del self.rewards[:]
         del self.is_terminals[:]
-
+    def clear_rgbd(self):
+        del self.rgbd[:]
+        del self.rgbd_recon[:]
 
 class AutoEncoder(nn.Module):
     def __init__(self):
@@ -66,9 +70,9 @@ class AutoEncoder(nn.Module):
         )
 
     def forward(self, x):
-        x = self.encoder(x)
-        x = self.decoder(x)
-        return x
+        encoding = self.encoder(x)
+        recon = self.decoder(encoding)
+        return encoding,recon
 
 
 class ActorCritic(nn.Module):
@@ -76,9 +80,6 @@ class ActorCritic(nn.Module):
         self.device = device
         super(ActorCritic, self).__init__()
         # action mean range -1 to 1
-        self.vgg = models.vgg16(pretrained=True).to(device).eval()
-        for param in self.vgg.parameters():
-            param.requires_grad = False
         #actor
         emb_ds = int(emb_size/4)
         self.actor =  nn.Sequential(
@@ -106,11 +107,9 @@ class ActorCritic(nn.Module):
     def forward(self):
         raise NotImplementedError
     
-    def act(self, rgb,  state, memory):
-        self.image_features = self.vgg.features(rgb.unsqueeze(0)).detach()
-        self.image_features = torch.nn.functional.avg_pool2d(self.image_features,7)
+    def act(self, image_features,  state, memory):
         #print(self.image_features.shape)
-        state = torch.cat((self.image_features.view(-1).unsqueeze(0), state, state, state),1)
+        state = torch.cat((image_features.view(-1).unsqueeze(0), state, state, state),1)
         action_mean = self.actor(state)
         cov_mat = torch.diag(self.action_var).to(self.device)
         
@@ -147,7 +146,7 @@ class PPO:
         self.env = env
         self.device = self.args.device
 
-        self.state_dim = self.env.observation_space.shape[0]*3 + 512  #!!!Get this right
+        self.state_dim = self.env.observation_space.shape[0]*3 + 1024  #!!!Get this right
         self.action_dim = self.env.action_space.shape[0]
         
         self.policy = ActorCritic(self.device ,self.state_dim, self.args.emb_size, self.action_dim, self.args.action_std).to(self.device)
@@ -155,13 +154,16 @@ class PPO:
         
         self.policy_old = ActorCritic(self.device, self.state_dim, self.args.emb_size, self.action_dim, self.args.action_std).to(self.device)
         self.policy_old.load_state_dict(self.policy.state_dict())
-        
+
+        self.rgbd_autoencoder = AutoEncoder().to(self.device)
+        self.autoencoder_optimizer = torch.optim.Adam(self.rgbd_autoencoder.parameters(), lr=self.args.lr, betas=self.args.betas)
+
         self.MseLoss = nn.MSELoss()
     
-    def select_action(self, rgb,  state, memory):
+    def select_action(self, image_features,  state, memory):
         state = torch.FloatTensor(state.reshape(1, -1)).to(self.device)
-        rgb = torch.FloatTensor(rgb).to(self.device)
-        return self.policy_old.act(rgb, state, memory).cpu().data.numpy().flatten()
+        image_features_avg_pooled = torch.nn.functional.avg_pool2d(image_features,7)
+        return self.policy_old.act(image_features_avg_pooled, state, memory).cpu().data.numpy().flatten()
     
     def update(self, memory):
         # Monte Carlo estimate of rewards:
@@ -201,9 +203,26 @@ class PPO:
             
             # take gradient step
             self.optimizer.zero_grad()
-            loss.mean().backward()
+            loss.mean().backward(retain_graph = True)
             self.optimizer.step()
             
         # Copy new weights into old policy:
         self.policy_old.load_state_dict(self.policy.state_dict())
+
+        #Train autoencoder
+        rgbd_in = torch.squeeze(torch.stack(memory.rgbd).to(self.device), 1).detach()
+        recon_out = torch.squeeze(torch.stack(memory.rgbd_recon).to(self.device), 1)
+
+        ae_dataset = TensorDataset(recon_out, rgbd_in) # create your datset
+        ae_dataloader = DataLoader(ae_dataset, batch_size=32, shuffle=True) # create your dataloader
+        total_loss = 0
+        ae_loss = 0
+        for rgbd_data in ae_dataloader:
+            ae_loss += self.MseLoss(rgbd_data[0], rgbd_data[1])
+       
+        total_loss = ae_loss.data
+        self.autoencoder_optimizer.zero_grad()
+        ae_loss.backward()
+        self.autoencoder_optimizer.step()
+        print("Loss for AE: ", total_loss)
 

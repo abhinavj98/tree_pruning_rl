@@ -214,7 +214,6 @@ class ur5GymEnv(gym.Env):
         self.set_joint_angles(joint_angles)
         rgbd = self.set_camera(cur_p[0], cur_p[1])
         self.rgb,  self.depth = self.seperate_rgbd_rgb_d(rgbd)
-        
         # step simualator:
         for i in range(self.actionRepeat):
             pybullet.stepSimulation()
@@ -268,7 +267,8 @@ class ur5GymEnv(gym.Env):
     @staticmethod
     def seperate_rgbd_rgb_d(rgbd):
         rgb = rgbd[2][:,:,0:3].reshape(3,224,224)/255
-        depth = rgbd[3]
+        depth = np.expand_dims(rgbd[3], 0)
+        
         return rgb, depth
 
     def compute_reward(self, achieved_goal, desired_goal, info):

@@ -37,7 +37,7 @@ def get_args():
     arg('--log_interval', type=int, default=100, help='interval for log')
     arg('--save_interval', type=int, default=10000, help='interval for saving model')
     arg('--max_episodes', type=int, default=250000, help='max training episodes')
-    arg('--update_timestep', type=int, default=1000, help='update policy every n timesteps')
+    arg('--update_timestep', type=int, default=100, help='update policy every n timesteps')
     arg('--action_std', type=float, default=1.0, help='constant std for action distribution (Multivariate Normal)')
     arg('--K_epochs', type=int, default=20, help='update policy for K epochs')
     arg('--eps_clip', type=float, default=0.2, help='clip parameter for PPO')
@@ -107,18 +107,23 @@ def main():
         state = env.reset()
         for t in range(args.mel):
             time_step += 1
-
-            action = ppo.select_action(env.rgb, state, memory)
+            rgbd = torch.tensor(np.concatenate((env.rgb, env.depth),0).astype('float32')).to(args.device)
+            image_features = ppo.rgbd_autoencoder(rgbd.unsqueeze(0)) #!!!!!!!!!!!!!!!!!!
+            action = ppo.select_action(image_features[0].detach(), state, memory)
             state, reward, done, _ = env.step(action)
             
             # Saving reward and is_terminals:
+            memory.rgbd_recon.append(image_features[1])
             memory.rewards.append(reward)
             memory.is_terminals.append(done)
+            memory.rgbd.append(rgbd)
+
             
             # learning:
             if time_step % args.update_timestep == 0:
                 ppo.update(memory)
                 memory.clear_memory()
+                memory.clear_rgbd()
                 time_step = 0
             running_reward += reward
 
