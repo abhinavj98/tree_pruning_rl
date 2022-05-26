@@ -20,7 +20,7 @@ def get_args():
     # arg('--env_name', type=str, default='ur10GymEnv', help='environment name')
     arg('--render', action='store_true', default=False, help='render the environment')
     arg('--randObjPos', action='store_true', default=False, help='fixed object position to pick up')
-    arg('--mel', type=int, default=1000, help='max episode length')
+    arg('--mel', type=int, default=100, help='max episode length')
     arg('--repeat', type=int, default=1, help='repeat action')
     arg('--simgrip', action='store_true', default=False, help='simulated gripper')
     arg('--task', type=int, default=0, help='task to learn: 0 move, 1 pick-up, 2 drop')
@@ -29,7 +29,7 @@ def get_args():
     arg('--seed', type=int, default=987, help='random seed')
     arg('--emb_size',   type=int, default=256, help='embedding size')
     arg('--n_episodes', type=int, default=5000, help='max training episodes')
-    arg('--action_std', type=float, default=0.25, help='constant std for action distribution (Multivariate Normal)')
+    arg('--action_std', type=float, default=1, help='constant std for action distribution (Multivariate Normal)')
     arg('--K_epochs', type=int, default=1000, help='update policy for K epochs')
     arg('--eps_clip', type=float, default=0.2, help='clip parameter for PPO')
     arg('--gamma', type=float, default=0.99, help='discount factor')
@@ -56,10 +56,10 @@ args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 memory = Memory()
 ppo = PPO(args, env)
-
+print(env.observation_space)
 print('Loading model:', args.trained_file)
 ppo.policy_old.load_state_dict(torch.load(args.trained_file))
-
+print("Loaded")
 # running test:
 for ep in range(1, args.n_episodes+1):
     ep_reward = 0

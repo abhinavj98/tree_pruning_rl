@@ -36,9 +36,9 @@ class ActorCritic(nn.Module):
         # action mean range -1 to 1
         self.actor =  nn.Sequential(
                 nn.Linear(state_dim, emb_size),
-                nn.Tanh(),
+                nn.ReLU(),
                 nn.Linear(emb_size, emb_size),
-                nn.Tanh(),
+                nn.ReLU(),
                 # nn.Linear(emb_size, emb_size),
                 # nn.Tanh(),
                 nn.Linear(emb_size, action_dim),
@@ -48,9 +48,9 @@ class ActorCritic(nn.Module):
         # critic
         self.critic = nn.Sequential(
                 nn.Linear(state_dim, emb_size),
-                nn.Tanh(),
+                nn.ReLU(),
                 nn.Linear(emb_size, emb_size),
-                nn.Tanh(),
+                nn.ReLU(),
                 # nn.Linear(emb_size, emb_size),
                 # nn.Tanh(),
                 nn.Linear(emb_size, 1)

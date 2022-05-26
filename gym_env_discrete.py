@@ -2,12 +2,12 @@
 # February 2021
 
 # PyBullet UR-5 from https://github.com/josepdaniel/UR5Bullet
-import pygame
-import OpenGL
-from pygame.locals import *
-from OpenGL.GL import *
-from OpenGL.GLU import *
-import pywavefront
+# import pygame
+# import OpenGL
+# from pygame.locals import *
+# from OpenGL.GL import *
+# from OpenGL.GLU import *
+# import pywavefront
 
 
 import random
@@ -24,7 +24,7 @@ import pybullet_data
 from datetime import datetime
 import pybullet_data
 from collections import namedtuple
-from attrdict import AttrDict
+#from attrdict import AttrDict
 from enum import Enum
 
 ROBOT_URDF_PATH = "./ur_e_description/urdf/ur5e.urdf"
@@ -96,7 +96,7 @@ class ur5GymEnv(gym.Env):
         self.joint_type_list = ["REVOLUTE", "PRISMATIC", "SPHERICAL", "PLANAR", "FIXED"]
         self.joint_info = namedtuple("jointInfo", ["id", "name", "type", "lowerLimit", "upperLimit", "maxForce", "maxVelocity", "controllable"])
 
-        self.joints = AttrDict()
+        self.joints = dict()
         for i in range(self.num_joints):
             info = pybullet.getJointInfo(self.ur5, i)
             jointID = info[0]
@@ -133,6 +133,7 @@ class ur5GymEnv(gym.Env):
         # self._action_bound = 1.0 # delta limits
         # action_high = np.array([self._action_bound] * self.action_dim)
         # self.action_space = spaces.Box(-action_high, action_high, dtype='float32')
+        self.action_space = spaces.Discrete(12)
         self.actions = {'up':1,
                         'down':2,
                         'left' : 3,
@@ -148,7 +149,7 @@ class ur5GymEnv(gym.Env):
         self.reset()
         high = np.array([10]*self.observation.shape[0])
         self.observation_space = spaces.Box(-high, high, dtype='float32')
-        self.scene = pywavefront.Wavefront('tree.obj', collect_faces=True)
+       # self.scene = pywavefront.Wavefront('tree.obj', collect_faces=True)
 
     def getTreePoints(self, count):
 
@@ -257,8 +258,8 @@ class ur5GymEnv(gym.Env):
         #discrete action
         deltaPose = np.array([0, 0, 0])
         deltaorient= np.array([0, 0, 0])
-        angle_scale = 2
-        step_size =  0.05*2
+        angle_scale = 1
+        step_size =  0.5
 
         if action == self.actions['up']:
             deltaPose = [step_size, 0, 0,]
