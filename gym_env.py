@@ -143,7 +143,8 @@ class ur5GymEnv(gym.Env):
     
 
     def check_collisions(self):
-        collisions = pybullet.getContactPoints()
+        collisions = pybullet.getContactPoints(bodyA = self.ur5, bodyB = self.table)
+        print(collisions)
         if len(collisions) > 0:
             # print("[Collision detected!] {}".format(datetime.now()))
             return True
@@ -195,6 +196,7 @@ class ur5GymEnv(gym.Env):
         cur_p = self.get_current_pose()
         rgbd = self.set_camera(cur_p[0], cur_p[1])
         self.rgb,  self.depth = self.seperate_rgbd_rgb_d(rgbd)
+        #print(self.depth)
         # get obs and return:
         self.getExtendedObservation()
         return self.observation
@@ -208,7 +210,7 @@ class ur5GymEnv(gym.Env):
         # get current position:
         cur_p = self.get_current_pose()
         # add delta position:
-        new_p = np.array(cur_p[0]) + 0.2*arm_action
+        new_p = np.array(cur_p[0]) + arm_action
         # actuate: 
         joint_angles = self.calculate_ik(new_p, self.ur5_or) # XYZ and angles set to zero
         self.set_joint_angles(joint_angles)
@@ -301,8 +303,8 @@ class ur5GymEnv(gym.Env):
 
         # check collisions:
         if self.check_collisions(): 
-            reward += -1
-            # print('Collision!')
+            reward += -30
+            print('Collision!')
 
         # print(target_dist, reward)
         # input()

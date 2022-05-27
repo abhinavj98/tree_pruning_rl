@@ -209,20 +209,20 @@ class PPO:
         # Copy new weights into old policy:
         self.policy_old.load_state_dict(self.policy.state_dict())
 
-        #Train autoencoder
+        #Train autoencoder - Update it for multiple epochs?
         rgbd_in = torch.squeeze(torch.stack(memory.rgbd).to(self.device), 1).detach()
-        recon_out = torch.squeeze(torch.stack(memory.rgbd_recon).to(self.device), 1)
+        #recon_out = torch.squeeze(torch.stack(memory.rgbd_recon).to(self.device), 1)
 
-        ae_dataset = TensorDataset(recon_out, rgbd_in) # create your datset
+        ae_dataset = TensorDataset(rgbd_in, rgbd_in) # create your datset
         ae_dataloader = DataLoader(ae_dataset, batch_size=32, shuffle=True) # create your dataloader
         total_loss = 0
         ae_loss = 0
         for rgbd_data in ae_dataloader:
-            ae_loss += self.MseLoss(rgbd_data[0], rgbd_data[1])
-       
-        total_loss = ae_loss.data
-        self.autoencoder_optimizer.zero_grad()
-        ae_loss.backward()
-        self.autoencoder_optimizer.step()
+            _, recon = self.rgbd_autoencoder(rgbd_data[0])
+            ae_loss = self.MseLoss(recon, rgbd_data[1])
+            total_loss += ae_loss.data
+            self.autoencoder_optimizer.zero_grad()
+            ae_loss.backward()
+            self.autoencoder_optimizer.step()
         print("Loss for AE: ", total_loss)
 
