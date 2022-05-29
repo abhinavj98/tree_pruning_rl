@@ -2,13 +2,15 @@
 # February 2021
 
 # PyBullet UR-5 from https://github.com/josepdaniel/UR5Bullet
-# import pygame
-# import OpenGL
-# from pygame.locals import *
-# from OpenGL.GL import *
-# from OpenGL.GLU import *
-# import pywavefront
 
+
+
+import pygame
+import OpenGL
+from pygame.locals import *
+from OpenGL.GL import *
+from OpenGL.GLU import *
+import pywavefront
 
 import random
 import time
@@ -30,7 +32,6 @@ from enum import Enum
 ROBOT_URDF_PATH = "./ur_e_description/urdf/ur5e.urdf"
 TREE_URDF_PATH = "./ur_e_description/urdf/tree.urdf"
 TABLE_URDF_PATH = os.path.join(pybullet_data.getDataPath(), "table/table.urdf")
-CUBE_URDF_PATH = os.path.join(pybullet_data.getDataPath(), "cube_small.urdf")
 
 # x,y,z distance
 def goal_distance(goal_a, goal_b):
@@ -88,7 +89,6 @@ class ur5GymEnv(gym.Env):
         # setup robot arm:
         self.end_effector_index = 7
         self.table = pybullet.loadURDF(TABLE_URDF_PATH, [0.5, 0, -0.6300], [0, 0, 0, 1])
-        self.tree= pybullet.loadURDF(TREE_URDF_PATH, [0., 0.0, 0.0], [0, 0, 0, 1])
         flags = pybullet.URDF_USE_SELF_COLLISION
         self.ur5 = pybullet.loadURDF(ROBOT_URDF_PATH, [0, 0, 0], [0, 0, 0, 1], flags=flags)
         self.num_joints = pybullet.getNumJoints(self.ur5)
@@ -114,7 +114,6 @@ class ur5GymEnv(gym.Env):
 
         # object:
         self.initial_obj_pos = [0.8, 0.1, 0.0] # initial object pos
-        self.obj = pybullet.loadURDF(CUBE_URDF_PATH, self.initial_obj_pos)
 
         self.name = 'ur5GymEnv'
         self.simulatedGripper = simulatedGripper
@@ -146,10 +145,15 @@ class ur5GymEnv(gym.Env):
                         'pitch_down' : 10,
                         'yaw_up' : 11,
                         'yaw_down' : 12}
+
+
+        self.scene = pywavefront.Wavefront('project_tree.obj', collect_faces=True)
+        self.tree_reachble = []
+        self.tree_target=self.getTreePoints(len(self.scene.vertices))
         self.reset()
         high = np.array([10]*self.observation.shape[0])
         self.observation_space = spaces.Box(-high, high, dtype='float32')
-       # self.scene = pywavefront.Wavefront('tree.obj', collect_faces=True)
+        self.tree = pybullet.loadURDF(TREE_URDF_PATH, [0., 0.0, 0.0], [0, 0, 0, 1])
 
     def getTreePoints(self, count):
 
@@ -157,16 +161,24 @@ class ur5GymEnv(gym.Env):
         point=[]
         colSphereId = pybullet.createCollisionShape(pybullet.GEOM_SPHERE, radius=.005)
         visualShapeId = pybullet.createVisualShape(pybullet.GEOM_SPHERE, radius=.005,rgbaColor =[1,0,0,1])
+        ur5_base_pos,_ = pybullet.getBasePositionAndOrientation(self.ur5);
 
         for i in range(count):
 
             scene_box = self.scene.vertices[i]
 
-            tree_w_frame = pybullet.multiplyTransforms([-.5,0,-.5],tree_oreint,[scene_box[0]*.1,scene_box[1]*.1,scene_box[2]*.1],[0,0,0,1])
-            position=[tree_w_frame[0][0],tree_w_frame[0][1],tree_w_frame[0][2],0]
+            tree_w_frame = pybullet.multiplyTransforms([-.7,0,-.5],tree_oreint,[scene_box[0]*.1,scene_box[1]*.1,scene_box[2]*.1],[0,0,0,1])
+            position=[tree_w_frame[0][0],tree_w_frame[0][1],tree_w_frame[0][2]]
             point.append(position)
-            sphereUid = pybullet.createMultiBody(0.0, colSphereId, visualShapeId, [position[0],position[1],position[2]], [0,0,0,1])
-        return point
+            # sphereUid = pybullet.createMultiBody(0.0, colSphereId, visualShapeId, [position[0],position[1],position[2]], [0,0,0,1])
+            dist=np.sqrt((np.square(position[0]))+((np.square(position[1]))+((np.square(position[2])))))
+            if dist <= 1. and position[2]>0.2:
+                self.tree_reachble.append(position)
+
+
+        print("got tree points")
+        return self.tree_reachble
+
 
 
 
@@ -239,10 +251,16 @@ class ur5GymEnv(gym.Env):
         # pybullet.addUserDebugText('X', self.obj_pos, [0,1,0], 1) # display goal
         # if self.randObjPos:
         # self.initial_obj_pos = [0.6+random.random()*0.1, 0.1+random.random()*0.1, 0.0]
-        pybullet.resetBasePositionAndOrientation(self.obj, self.initial_obj_pos, [0.,0.,0.,1.0]) # reset object pos
+        # print(self.tree_target)
+        # pybullet.resetBasePositionAndOrientation(self.obj, self.tree_target[1], [0.,0.,0.,1.0]) # reset object pos
+        # pybullet.resetBasePositionAndOrientation(self.obj, self.initial_obj_pos, [0.,0.,0.,1.0]) # reset object pos
+        colSphereId = pybullet.createCollisionShape(pybullet.GEOM_SPHERE, radius=.005*3)
+        visualShapeId = pybullet.createVisualShape(pybullet.GEOM_SPHERE, radius=.005*3, rgbaColor=[1, 0, 0, 1])
+        sphereUid = pybullet.createMultiBody(0.0, colSphereId, visualShapeId, [self.tree_target[-1][0], self.tree_target[-1][1], self.tree_target[-1][2]], [0, 0, 0, 1])
 
         # reset robot simulation and position:
-        joint_angles = (-0.34, -1.57, 1.80, -1.57, -1.57, 0.00) # pi/2 = 1.5707
+        # joint_angles = (-0.34, -1.57, 1.80, -1.57, -1.57, 0.00) # pi/2 = 1.5707
+        joint_angles = (-.34, -1.57, 1.80, -1.57, -1.57, 0.00)
         self.set_joint_angles(joint_angles)
 
         # step simualator:
@@ -336,9 +354,8 @@ class ur5GymEnv(gym.Env):
         # js = self.get_joint_angles()
 
         tool_pos = self.get_current_pose()[0]# XYZ, no angles
-        self.obj_pos,_ = pybullet.getBasePositionAndOrientation(self.obj)
-        objects_pos = self.obj_pos
-        goal_pos = self.obj_pos
+        objects_pos = self.tree_target[-1]
+        goal_pos = self.tree_target[-1]
 
         self.observation = np.array(np.concatenate((tool_pos, objects_pos)))
         self.achieved_goal = np.array(np.concatenate((objects_pos, tool_pos)))

@@ -2,7 +2,7 @@
   <link name="tree">
     <visual>
       <geometry>
-        <mesh filename="../meshes/tree.obj" scale=".1 .1 .1"/>
+        <mesh filename="../meshes/project_tree.obj" scale=".1 .1 .1"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -10,7 +10,7 @@
     </visual>
     <collision>
       <geometry>
-         <mesh filename="../meshes/tree.obj" scale=".1 .1 .1"/>
+         <mesh filename="../meshes/project_tree.obj" scale=".1 .1 .1"/>
       </geometry>
     </collision>
     <inertial>
@@ -23,6 +23,6 @@
   <joint name="tree_joint" type="fixed">
     <parent link="world"/>
     <child link="tree"/>
-    <origin rpy="0.0 0.0 1.514" xyz="-.5 0.0 -.5"/>
+    <origin rpy="0.0 0.0 1.514" xyz="-.7 0.0 -.5"/>
   </joint>
 </robot>
