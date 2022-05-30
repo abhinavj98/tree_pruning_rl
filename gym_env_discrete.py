@@ -172,7 +172,9 @@ class ur5GymEnv(gym.Env):
             point.append(position)
             # sphereUid = pybullet.createMultiBody(0.0, colSphereId, visualShapeId, [position[0],position[1],position[2]], [0,0,0,1])
             dist=np.sqrt((np.square(position[0]))+((np.square(position[1]))+((np.square(position[2])))))
-            if dist <= 1. and position[2]>0.2:
+            if dist <= 1. and position[2]>0.2 and position[0]>-.7:
+                # sphereUid = pybullet.createMultiBody(0.0, colSphereId, visualShapeId,
+                #                                      [position[0], position[1], position[2]], [0, 0, 0, 1])
                 self.tree_reachble.append(position)
 
 
@@ -361,6 +363,7 @@ class ur5GymEnv(gym.Env):
         self.achieved_goal = np.array(np.concatenate((objects_pos, tool_pos)))
         self.desired_goal = np.array(goal_pos)
         link_vals=pybullet.getLinkState(self.ur5, self.end_effector_index)
+        test_cam =pybullet.getLinkState(self.ur5, 9)
         self.achieved_orient=link_vals[3]
 
 

@@ -54,9 +54,9 @@ args.data_size = obs.shape[0]
 
 def main():
 
-    # positions = [[-0.3,0,0,0],[0,0.6,0,0],[0,0,-0.6,0],[0,0,0,0],
-    #              [0,0,-0.1,0],[0,-0.1,0,0],[-0.1,0,0,0],[0,0,0,0]]
-    position= env.getTreePoints(1000)
+    positions = [[-0.3,0,0,0],[0,0.6,0,0],[0,0,-0.6,0],[0,0,0,0],
+                 [0,0,-0.1,0],[0,-0.1,0,0],[-0.1,0,0,0],[0,0,0,0]]
+    # position= env.getTreePoints(1000)
 
     state = env.reset()
     ep_reward = 0
