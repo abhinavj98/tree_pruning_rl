@@ -144,7 +144,7 @@ class ur5GymEnv(gym.Env):
 
     def check_collisions(self):
         collisions = pybullet.getContactPoints(bodyA = self.ur5, bodyB = self.table)
-        print(collisions)
+    #    print(collisions)
         if len(collisions) > 0:
             # print("[Collision detected!] {}".format(datetime.now()))
             return True
