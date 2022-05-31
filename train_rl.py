@@ -14,8 +14,9 @@ import pickle
 import torch
 import gym
 import random
-from ppo import PPO, Memory, ActorCritic, AutoEncoder
-from gym_env import ur5GymEnv
+from ppo_discrete import PPO, Memory, ActorCritic
+from gym_env_discrete import ur5GymEnv
+
 title = 'PyBullet UR5 robot'
 
 def get_args():
@@ -24,22 +25,22 @@ def get_args():
     # env
     # arg('--env_name', type=str, default='ur5GymEnv', help='environment name')
     arg('--render', action='store_true', default=False, help='render the environment')
-    arg('--randObjPos', action='store_true', default=True, help='fixed object position to pick up')
-    arg('--mel', type=int, default=60, help='max episode length')
+    arg('--randObjPos', action='store_true', default=False, help='fixed object position to pick up')
+    arg('--mel', type=int, default=100, help='max episode length')
     arg('--repeat', type=int, default=1, help='repeat action')
     arg('--simgrip', action='store_true', default=False, help='simulated gripper')
     arg('--task', type=int, default=0, help='task to learn: 0 move, 1 pick-up, 2 drop')
     arg('--lp', type=float, default=0.1, help='learning parameter for task')
     # train:
     arg('--seed', type=int, default=987, help='random seed')
-    arg('--emb_size',   type=int, default=512, help='embedding size')
+    arg('--emb_size',   type=int, default=256, help='embedding size')
     arg('--solved_reward', type=int, default=0, help='stop training if avg_reward > solved_reward')
     arg('--log_interval', type=int, default=100, help='interval for log')
-    arg('--save_interval', type=int, default=10000, help='interval for saving model')
-    arg('--max_episodes', type=int, default=250000, help='max training episodes')
+    arg('--save_interval', type=int, default=1000, help='interval for saving model')
+    arg('--max_episodes', type=int, default=100000, help='max training episodes')
     arg('--update_timestep', type=int, default=1000, help='update policy every n timesteps')
     arg('--action_std', type=float, default=1.0, help='constant std for action distribution (Multivariate Normal)')
-    arg('--K_epochs', type=int, default=20, help='update policy for K epochs')
+    arg('--K_epochs', type=int, default=100, help='update policy for K epochs')
     arg('--eps_clip', type=float, default=0.2, help='clip parameter for PPO')
     arg('--gamma', type=float, default=0.99, help='discount factor')
     arg('--lr', type=float, default=1e-3, help='parameters for Adam optimizer')
@@ -47,9 +48,9 @@ def get_args():
     arg('--loss_entropy_c', type=float, default=0.01, help='coefficient for entropy term in loss')
     arg('--loss_value_c', type=float, default=0.5, help='coefficient for value term in loss')
     arg('--save_dir', type=str, default='saved_rl_models/', help='path to save the models')
-    arg('--cuda', dest='cuda', action='store_true', default=False, help='Use cuda to train model')
+    arg('--cuda', dest='cuda', action='store_true', default=True, help='Use cuda to train model')
     arg('--device_num', type=str, default=0,  help='GPU number to use')
-    arg('--load_checkpoint', action = 'store_true', default = False, help = 'load a trained model for retraining' )
+
     args = parser.parse_args()
     return args
 
@@ -57,8 +58,7 @@ args = get_args() # Holds all the input arguments
 
 np.set_printoptions(precision=2)
 torch.set_printoptions(profile="full", precision=2)
-a = AutoEncoder()
-print(a)
+
 # Color Palette
 CP_R = '\033[31m'
 CP_G = '\033[32m'
@@ -83,11 +83,11 @@ def main():
 
     if not os.path.exists(args.save_dir):
         os.mkdir(args.save_dir)
-    
-    env = ur5GymEnv(renders=args.render, maxSteps=args.mel, 
+
+    env = ur5GymEnv(renders=args.render, maxSteps=args.mel,
             actionRepeat=args.repeat, task=args.task, randObjPos=args.randObjPos,
             simulatedGripper=args.simgrip, learning_param=args.lp)
-    
+
     env.seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -110,11 +110,11 @@ def main():
 
             action = ppo.select_action(env.rgb, state, memory)
             state, reward, done, _ = env.step(action)
-            
+
             # Saving reward and is_terminals:
             memory.rewards.append(reward)
             memory.is_terminals.append(done)
-            
+
             # learning:
             if time_step % args.update_timestep == 0:
                 ppo.update(memory)
@@ -124,24 +124,24 @@ def main():
 
             if done:
                 break
-        
+
         avg_length += t
-        
+
         # stop training if avg_reward > solved_reward
         if running_reward > (args.log_interval*args.solved_reward):
             print("########## Solved! ##########")
             torch.save(ppo.policy.state_dict(), args.save_dir+'./model_solved.pth')
             break
-        
+
         # save every few episodes
         if i_episode % args.save_interval == 0:
-            torch.save(ppo.policy.state_dict(), args.save_dir+'/actor_model_epoch_'+str(int(i_episode/args.save_interval))+'.pth')
-            torch.save(ppo.policy_old.state_dict(),args.save_dir + '/critic_model_epoch_' + str(int(i_episode / args.save_interval)) + '.pth')
+            torch.save(ppo.policy.state_dict(), args.save_dir+'/model_epoch_'+str(int(i_episode/args.save_interval))+'.pth')
+
         # logging
         if i_episode % args.log_interval == 0:
             avg_length = int(avg_length/args.log_interval)
             running_reward = int((running_reward/args.log_interval))
-            
+
             print('Episode {} \t Avg length: {} \t Avg reward: {}'.format(i_episode, avg_length, running_reward))
             running_reward = 0
             avg_length = 0
