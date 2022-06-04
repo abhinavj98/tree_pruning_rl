@@ -98,7 +98,7 @@ class ur5GymEnv(gym.Env):
         self.joint_type_list = ["REVOLUTE", "PRISMATIC", "SPHERICAL", "PLANAR", "FIXED"]
         self.joint_info = namedtuple("jointInfo", ["id", "name", "type", "lowerLimit", "upperLimit", "maxForce", "maxVelocity", "controllable"])
         self.proj_mat = pybullet.computeProjectionMatrixFOV(
-            fov=42.0, aspect = width / height, nearVal=0.01,
+            fov=70.0, aspect = width / height, nearVal=0.01,
             farVal=10.0)
         self.joints = dict()
         for i in range(self.num_joints):
@@ -214,7 +214,7 @@ class ur5GymEnv(gym.Env):
 
     def check_collisions(self):
         collisions = pybullet.getContactPoints(bodyA = self.ur5, bodyB = self.tree, linkIndexA=7)
-        print(collisions)
+        # print(collisions)
         if len(collisions) > 0:
             # print("[Collision detected!] {}".format(datetime.now()))
             return True
@@ -253,7 +253,7 @@ class ur5GymEnv(gym.Env):
 		#upVector = [0,0,1]
         forwardVec = [camMat[0],camMat[3],camMat[6]]
 		#sideVec =  [camMat[1],camMat[4],camMat[7]]
-        camUpVec =  [camMat[2],camMat[5],camMat[8]]
+        camUpVec =  [-camMat[2],-camMat[5],-camMat[8]]
         camTarget = [pose[0]+forwardVec[0]*10,pose[1]+forwardVec[1]*10,pose[2]+forwardVec[2]*10]
         camUpTarget = [pose[0]+camUpVec[0],pose[1]+camUpVec[1],pose[2]+camUpVec[2]]
         viewMat = pybullet.computeViewMatrix(pose, camTarget, camUpVec)
@@ -284,7 +284,7 @@ class ur5GymEnv(gym.Env):
 
         # reset robot simulation and position:
         # joint_angles = (-0.34, -1.57, 1.80, -1.57, -1.57, 0.00) # pi/2 = 1.5707
-        joint_angles = (-.34, -1.57, 1.80, -1.57, -1.57, 0.00)
+        joint_angles = (-.34, -1.57,1.80,-3.14,-1.57, 0.00)
         self.set_joint_angles(joint_angles)
 
         # step simualator:
@@ -420,31 +420,21 @@ class ur5GymEnv(gym.Env):
 
         # print(approach_velocity)
         # input()
-        if (self.target_dist<=.05):
-            reward += (self.target_dist) *5
-        elif (self.target_dist<=.1 and self.target_dist>.05):
-            reward += (self.target_dist)
-        elif(self.target_dist<=.25 and self.target_dist>.1 ):
-            reward += (-self.target_dist)
-        elif (self.target_dist<=.45 and self.target_dist>.25):
-            reward += (-self.target_dist)*2
-        elif(self.target_dist<=.65 and self.target_dist>.45 ):
-            reward += (-self.target_dist) * 4
-        else:
-            reward += (-self.target_dist) * 10
-
+        reward += -self.target_dist * 10
 
         # task 0: reach object:
-        if self.target_dist < self.learning_param:# and approach_velocity < 0.05:
+        if self.target_dist < self.learning_param:  # and approach_velocity < 0.05:
             self.terminated = True
-            reward += 1000
-
+            reward += 10
+            print('Successful!')
 
         # check collisions:
         if self.check_collisions():
-            reward += -10
-            # print('Collision!')
+            reward += -30
+            print('Collision!')
 
         # print(target_dist, reward)
         # input()
+
         return reward
+

@@ -33,11 +33,11 @@ def get_args():
     arg('--lp', type=float, default=0.1, help='learning parameter for task')
     # train:
     arg('--seed', type=int, default=987, help='random seed')
-    arg('--emb_size',   type=int, default=256, help='embedding size')
+    arg('--emb_size',   type=int, default=512, help='embedding size')
     arg('--solved_reward', type=int, default=0, help='stop training if avg_reward > solved_reward')
     arg('--log_interval', type=int, default=100, help='interval for log')
     arg('--save_interval', type=int, default=1000, help='interval for saving model')
-    arg('--max_episodes', type=int, default=100000, help='max training episodes')
+    arg('--max_episodes', type=int, default=150000, help='max training episodes')
     arg('--update_timestep', type=int, default=1000, help='update policy every n timesteps')
     arg('--action_std', type=float, default=1.0, help='constant std for action distribution (Multivariate Normal)')
     arg('--K_epochs', type=int, default=100, help='update policy for K epochs')

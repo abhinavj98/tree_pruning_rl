@@ -204,33 +204,7 @@
       </geometry>
       <origin rpy="0 0 0" xyz="-0.01 0 0"/>
     </collision>
-
   </link>
-
-
-
-    <link name="camera_link">
-    <collision>
-      <geometry>
-        <cylinder length=".1" radius="0.01"/>
-      </geometry>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-    </collision>
-    <visual>
-      <geometry>
-        <cylinder length="0.1" radius="0.01"/>
-        <origin rpy="0 0 0" xyz="0 0. 0."/>
-      </geometry>
-    </visual>
-
-  </link>
-
-  <joint name="camera_fixed_joint" type="fixed">
-    <parent link="wrist_2_link"/>
-    <child link="camera_link"/>
-    <origin rpy="0.0 3.14 0" xyz="0.0 -0.06 0."/>
-  </joint>
-
   <transmission name="shoulder_pan_trans">
     <type>transmission_interface/SimpleTransmission</type>
     <joint name="shoulder_pan_joint">

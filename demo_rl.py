@@ -6,8 +6,8 @@
 import numpy as np
 import gym
 import argparse, random
-from ppo import PPO, Memory
-from gym_env import ur5GymEnv
+from ppo_discrete import PPO, Memory
+from gym_env_discrete import ur5GymEnv
 import torch
 
 title = 'PyBullet UR-5'
