@@ -25,8 +25,8 @@ def get_args():
     # env
     # arg('--env_name', type=str, default='ur5GymEnv', help='environment name')
     arg('--render', action='store_true', default=False, help='render the environment')
-    arg('--randObjPos', action='store_true', default=False, help='fixed object position to pick up')
-    arg('--mel', type=int, default=100, help='max episode length')
+    arg('--randObjPos', action='store_true', default=True, help='fixed object position to pick up')
+    arg('--mel', type=int, default=10, help='max episode length')
     arg('--repeat', type=int, default=1, help='repeat action')
     arg('--simgrip', action='store_true', default=False, help='simulated gripper')
     arg('--task', type=int, default=0, help='task to learn: 0 move, 1 pick-up, 2 drop')
@@ -48,7 +48,7 @@ def get_args():
     arg('--loss_entropy_c', type=float, default=0.01, help='coefficient for entropy term in loss')
     arg('--loss_value_c', type=float, default=0.5, help='coefficient for value term in loss')
     arg('--save_dir', type=str, default='saved_rl_models/', help='path to save the models')
-    arg('--cuda', dest='cuda', action='store_true', default=True, help='Use cuda to train model')
+    arg('--cuda', dest='cuda', action='store_true', default=False, help='Use cuda to train model')
     arg('--device_num', type=str, default=0,  help='GPU number to use')
 
     args = parser.parse_args()

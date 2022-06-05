@@ -5,11 +5,11 @@
 
 
 
-import pygame
-import OpenGL
-from pygame.locals import *
-from OpenGL.GL import *
-from OpenGL.GLU import *
+# import pygame
+# import OpenGL
+# from pygame.locals import *
+# from OpenGL.GL import *
+# from OpenGL.GLU import *
 import pywavefront
 
 import random
@@ -273,14 +273,15 @@ class ur5GymEnv(gym.Env):
         rgbd = self.set_camera(cur_p[0], cur_p[1])
         self.rgb,  self.depth = self.seperate_rgbd_rgb_d(rgbd)
         # pybullet.addUserDebugText('X', self.obj_pos, [0,1,0], 1) # display goal
-        # if self.randObjPos:
-        # self.initial_obj_pos = [0.6+random.random()*0.1, 0.1+random.random()*0.1, 0.0]
+        if self.randObjPos:
+            self.initial_obj_pos = random.sample(self.tree_target,1)[0]
+        print(self.initial_obj_pos)
         # print(self.tree_target)
         # pybullet.resetBasePositionAndOrientation(self.obj, self.tree_target[1], [0.,0.,0.,1.0]) # reset object pos
         # pybullet.resetBasePositionAndOrientation(self.obj, self.initial_obj_pos, [0.,0.,0.,1.0]) # reset object pos
-        colSphereId = pybullet.createCollisionShape(pybullet.GEOM_SPHERE, radius=.005*3)
-        visualShapeId = pybullet.createVisualShape(pybullet.GEOM_SPHERE, radius=.005*3, rgbaColor=[1, 0, 0, 1])
-        sphereUid = pybullet.createMultiBody(0.0, colSphereId, visualShapeId, [self.tree_target[-1][0], self.tree_target[-1][1], self.tree_target[-1][2]], [0, 0, 0, 1])
+        # colSphereId = pybullet.createCollisionShape(pybullet.GEOM_SPHERE, radius=.005*3)
+        # visualShapeId = pybullet.createVisualShape(pybullet.GEOM_SPHERE, radius=.005*3, rgbaColor=[1, 0, 0, 1])
+        # sphereUid = pybullet.createMultiBody(0.0, colSphereId, visualShapeId, [self.initial_obj_pos[0], self.initial_obj_pos[1], self.initial_obj_pos[2]], [0, 0, 0, 1])
 
         # reset robot simulation and position:
         # joint_angles = (-0.34, -1.57, 1.80, -1.57, -1.57, 0.00) # pi/2 = 1.5707
@@ -381,12 +382,13 @@ class ur5GymEnv(gym.Env):
         # js = self.get_joint_angles()
 
         tool_pos = self.get_current_pose()[0]# XYZ, no angles
-        objects_pos = self.tree_target[-1]
-        goal_pos = self.tree_target[-1]
+        objects_pos = self.initial_obj_pos
+        goal_pos = self.initial_obj_pos
 
         self.observation = np.array(np.concatenate((tool_pos, objects_pos)))
         self.achieved_goal = np.array(np.concatenate((objects_pos, tool_pos)))
         self.desired_goal = np.array(goal_pos)
+        print(self.desired_goal)
         link_vals=pybullet.getLinkState(self.ur5, self.end_effector_index)
         self.achieved_orient=link_vals[3]
 
