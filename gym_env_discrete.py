@@ -98,7 +98,7 @@ class ur5GymEnv(gym.Env):
         self.joint_type_list = ["REVOLUTE", "PRISMATIC", "SPHERICAL", "PLANAR", "FIXED"]
         self.joint_info = namedtuple("jointInfo", ["id", "name", "type", "lowerLimit", "upperLimit", "maxForce", "maxVelocity", "controllable"])
         self.proj_mat = pybullet.computeProjectionMatrixFOV(
-            fov=70.0, aspect = width / height, nearVal=0.01,
+            fov=45, aspect = width / height, nearVal=0.01,
             farVal=10.0)
         self.joints = dict()
         for i in range(self.num_joints):
@@ -157,7 +157,7 @@ class ur5GymEnv(gym.Env):
         self.reset()
         high = np.array([10]*self.observation.shape[0])
         self.observation_space = spaces.Box(-high, high, dtype='float32')
-        self.tree = pybullet.loadURDF(TREE_URDF_PATH, [0., 0.0, 0.0], [0, 0, 0, 1])
+        self.tree = pybullet.loadURDF(TREE_URDF_PATH, [-0.2, 0.0, 0.0], [0, 0, 0, 1])
 
     def getTreePoints(self, count):
 
@@ -249,8 +249,18 @@ class ur5GymEnv(gym.Env):
 
     def set_camera(self, pose, orientation):
         ##!!!!!!!!!!!!!!! Need to rewrite this
-        camMat = pybullet.getMatrixFromQuaternion(orientation)
+        rot_matrix = np.array(pybullet.getMatrixFromQuaternion(orientation)).reshape(3,3)
 		#upVector = [0,0,1]
+        # Initial vectors
+        init_camera_vector = np.array([0, 1, 0])# z-axis
+        init_up_vector = np.array([0, 0, 1]) # y-axis
+        # Rotated vectors
+        camera_vector = rot_matrix.dot(init_camera_vector)
+        up_vector = rot_matrix.dot(init_up_vector)
+        view_matrix = pybullet.computeViewMatrix(pose, pose + 0.1 * camera_vector, up_vector)
+       
+        return pybullet.getCameraImage(224, 224, viewMatrix = view_matrix, projectionMatrix = self.proj_mat, renderer = pybullet.ER_BULLET_HARDWARE_OPENGL)
+
         forwardVec = [camMat[0],camMat[3],camMat[6]]
 		#sideVec =  [camMat[1],camMat[4],camMat[7]]
         camUpVec =  [-camMat[2],-camMat[5],-camMat[8]]
@@ -275,7 +285,7 @@ class ur5GymEnv(gym.Env):
         # pybullet.addUserDebugText('X', self.obj_pos, [0,1,0], 1) # display goal
         if self.randObjPos:
             self.initial_obj_pos = random.sample(self.tree_target,1)[0]
-        print(self.initial_obj_pos)
+        #print(self.initial_obj_pos)
         # print(self.tree_target)
         # pybullet.resetBasePositionAndOrientation(self.obj, self.tree_target[1], [0.,0.,0.,1.0]) # reset object pos
         # pybullet.resetBasePositionAndOrientation(self.obj, self.initial_obj_pos, [0.,0.,0.,1.0]) # reset object pos
@@ -388,7 +398,7 @@ class ur5GymEnv(gym.Env):
         self.observation = np.array(np.concatenate((tool_pos, objects_pos)))
         self.achieved_goal = np.array(np.concatenate((objects_pos, tool_pos)))
         self.desired_goal = np.array(goal_pos)
-        print(self.desired_goal)
+        #print(self.desired_goal)
         link_vals=pybullet.getLinkState(self.ur5, self.end_effector_index)
         self.achieved_orient=link_vals[3]
 
@@ -422,7 +432,7 @@ class ur5GymEnv(gym.Env):
 
         # print(approach_velocity)
         # input()
-        reward += -self.target_dist * 10
+        reward += -self.target_dist * 100
 
         # task 0: reach object:
         if self.target_dist < self.learning_param:  # and approach_velocity < 0.05:
@@ -432,9 +442,9 @@ class ur5GymEnv(gym.Env):
 
         # check collisions:
         if self.check_collisions():
-            reward += -30
+            reward += -5
             print('Collision!')
-
+        reward+= -1
         # print(target_dist, reward)
         # input()
 
