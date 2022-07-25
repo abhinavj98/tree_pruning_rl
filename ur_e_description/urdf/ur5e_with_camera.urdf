@@ -201,10 +201,10 @@
     <collision>
       <geometry>
         <!--> Change this to 0.01 0.01 0.01 to get rid of box</!-->
-        <box size="0.15 0.1 0.1"/>
+        <box size="0.01 0.01 0.01"/>
       </geometry>
       <!--> Change this to 0.01 0 0 to get rid of box</!-->
-      <origin rpy="0 0 0" xyz="0.05 0 0"/>
+      <origin rpy="0 0 0" xyz="0.01 0 0"/>
     </collision>
     <inertial>
       <mass value="0.1879"/>

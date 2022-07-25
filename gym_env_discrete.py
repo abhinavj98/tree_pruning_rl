@@ -29,7 +29,7 @@ from collections import namedtuple
 #from attrdict import AttrDict
 from enum import Enum
 
-ROBOT_URDF_PATH = "./ur_e_description/urdf/ur5e.urdf"
+ROBOT_URDF_PATH = "./ur_e_description/urdf/ur5e_with_camera.urdf"
 TREE_URDF_PATH = "./ur_e_description/urdf/tree.urdf"
 TABLE_URDF_PATH = os.path.join(pybullet_data.getDataPath(), "table/table.urdf")
 
@@ -92,19 +92,20 @@ class ur5GymEnv(gym.Env):
         self.end_effector_index = 7
         self.table = pybullet.loadURDF(TABLE_URDF_PATH, [0.5, 0, -0.6300], [0, 0, 0, 1])
         flags = pybullet.URDF_USE_SELF_COLLISION
-        self.ur5 = pybullet.loadURDF(ROBOT_URDF_PATH, [0, 0, 0], [0, 0, 0, 1], flags=flags)
+        self.ur5 = pybullet.loadURDF(ROBOT_URDF_PATH, [1, 0, 0], [0, 0, 0, 1], flags=flags)
         self.num_joints = pybullet.getNumJoints(self.ur5)
         self.control_joints = ["shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint", "wrist_1_joint", "wrist_2_joint", "wrist_3_joint"]
         self.joint_type_list = ["REVOLUTE", "PRISMATIC", "SPHERICAL", "PLANAR", "FIXED"]
         self.joint_info = namedtuple("jointInfo", ["id", "name", "type", "lowerLimit", "upperLimit", "maxForce", "maxVelocity", "controllable"])
         self.proj_mat = pybullet.computeProjectionMatrixFOV(
-            fov=45, aspect = width / height, nearVal=0.01,
+            fov=42, aspect = width / height, nearVal=0.01,
             farVal=10.0)
         self.joints = dict()
         for i in range(self.num_joints):
             info = pybullet.getJointInfo(self.ur5, i)
             jointID = info[0]
             jointName = info[1].decode("utf-8")
+            print(i, jointName)
             jointType = self.joint_type_list[info[2]]
             jointLowerLimit = info[8]
             jointUpperLimit = info[9]
@@ -157,7 +158,7 @@ class ur5GymEnv(gym.Env):
         self.reset()
         high = np.array([10]*self.observation.shape[0])
         self.observation_space = spaces.Box(-high, high, dtype='float32')
-        self.tree = pybullet.loadURDF(TREE_URDF_PATH, [-0.2, 0.0, 0.0], [0, 0, 0, 1])
+        self.tree = pybullet.loadURDF(TREE_URDF_PATH, [2.3, 0.0, 0.0], [0, 0, 0, 1], globalScaling=1)
 
     def getTreePoints(self, count):
 
@@ -249,21 +250,22 @@ class ur5GymEnv(gym.Env):
 
     def set_camera(self, pose, orientation):
         ##!!!!!!!!!!!!!!! Need to rewrite this
-        rot_matrix = np.array(pybullet.getMatrixFromQuaternion(orientation)).reshape(3,3)
+        pose, orientation = self.get_current_pose()
+        rot_mat = np.array(pybullet.getMatrixFromQuaternion(orientation)).reshape(3,3)
 		#upVector = [0,0,1]
-        # Initial vectors
-        init_camera_vector = np.array([0, 1, 0])# z-axis
-        init_up_vector = np.array([0, 0, 1]) # y-axis
-        # Rotated vectors
-        camera_vector = rot_matrix.dot(init_camera_vector)
-        up_vector = rot_matrix.dot(init_up_vector)
+        #Initial vectors
+        init_camera_vector = np.array([1,0, 0])#
+        init_up_vector = np.array([0, 0,1]) #
+        #Rotated vectors
+        camera_vector = rot_mat.dot(init_camera_vector)
+        up_vector = rot_mat.dot(init_up_vector)
         view_matrix = pybullet.computeViewMatrix(pose, pose + 0.1 * camera_vector, up_vector)
        
         return pybullet.getCameraImage(224, 224, viewMatrix = view_matrix, projectionMatrix = self.proj_mat, renderer = pybullet.ER_BULLET_HARDWARE_OPENGL)
-
+        camMat = pybullet.getMatrixFromQuaternion(orientation)
         forwardVec = [camMat[0],camMat[3],camMat[6]]
 		#sideVec =  [camMat[1],camMat[4],camMat[7]]
-        camUpVec =  [-camMat[2],-camMat[5],-camMat[8]]
+        camUpVec =  [camMat[2],camMat[5],camMat[8]]
         camTarget = [pose[0]+forwardVec[0]*10,pose[1]+forwardVec[1]*10,pose[2]+forwardVec[2]*10]
         camUpTarget = [pose[0]+camUpVec[0],pose[1]+camUpVec[1],pose[2]+camUpVec[2]]
         viewMat = pybullet.computeViewMatrix(pose, camTarget, camUpVec)
@@ -295,7 +297,7 @@ class ur5GymEnv(gym.Env):
 
         # reset robot simulation and position:
         # joint_angles = (-0.34, -1.57, 1.80, -1.57, -1.57, 0.00) # pi/2 = 1.5707
-        joint_angles = (-.34, -1.57,1.80,-3.14,-1.57, 0.00)
+        joint_angles = (-.34, -1.57,1.80,-3.14,-1.57, -1.57)
         self.set_joint_angles(joint_angles)
 
         # step simualator:
@@ -312,7 +314,7 @@ class ur5GymEnv(gym.Env):
         deltaPose = np.array([0, 0, 0])
         deltaorient= np.array([0, 0, 0])
         angle_scale = 1
-        step_size =  0.5
+        step_size =  1
 
         if action == self.actions['up']:
             deltaPose = [step_size, 0, 0,]
@@ -352,7 +354,6 @@ class ur5GymEnv(gym.Env):
         # action = np.array(action)
         # arm_action = action[0:self.action_dim-1].astype(float) # dX, dY, dZ - range: [-1,1]
         # gripper_action = action[self.action_dim-1].astype(float) # gripper - range: [-1=closed,1=open]
-
 
         # get current position:
         cur_p = self.get_current_pose()
