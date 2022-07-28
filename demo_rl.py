@@ -62,7 +62,7 @@ torch.manual_seed(args.seed)
 ppo = PPO(args, env)
 
 print('Loading model:', args.trained_file)
-ppo.policy_old.load_state_dict(torch.load(args.trained_file))
+ppo.policy_old.load_state_dict(torch.load(args.trained_file, map_location=args.device))
 ppo.policy_old.to()
 memory = Memory()
 # running test:
@@ -84,6 +84,6 @@ for ep in range(1, args.n_episodes+1):
         if done:
             break
         
-    print('Episode: {}\tSteps: {}\tReward: {}'.format(ep, t, int(ep_reward)))
+    print('Episode: {}\tSteps: {}\tReward: {}'.format(ep, t, (ep_reward)))
     ep_reward = 0
     env.close()

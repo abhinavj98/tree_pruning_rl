@@ -70,7 +70,7 @@ class ActorCritic(nn.Module):
         self.image_features = self.vgg.features(rgb.unsqueeze(0)).detach()
         self.image_features = torch.nn.functional.avg_pool2d(self.image_features,7)
         #print(self.image_features.shape)
-        state = torch.cat((self.image_features.view(-1).unsqueeze(0), state, state, state),1)
+        state = torch.cat((self.image_features.view(-1).unsqueeze(0), state, state, state),1) 
         #action_mean = self.actor(state)
         #cov_mat = torch.diag(self.action_var).to(self.device)
         # discrete action
@@ -147,7 +147,7 @@ class PPO:
             rewards.insert(0, discounted_reward)
         
         # Normalizing the rewards:
-        rewards = torch.tensor(rewards).to(self.device)
+        rewards = torch.tensor(np.array(rewards)).to(self.device)
         rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-5)
         rewards = rewards.float().squeeze()
         
@@ -156,8 +156,16 @@ class PPO:
         old_actions = torch.squeeze(torch.stack(memory.actions).to(self.device), 1).detach()
         old_logprobs = torch.squeeze(torch.stack(memory.logprobs), 1).to(self.device).detach()
         
+         #Plotting
+        plot_dict = {}
+        plot_dict['surr2'] =  0
+        plot_dict['surr1'] =  0
+        plot_dict['critic_loss'] =  0
+        plot_dict['actor_loss'] =  0
+        plot_dict['total_loss'] =  0
         # Optimize policy for K epochs:
         for _ in range(self.args.K_epochs):
+           
             # Evaluating old actions and values :
             logprobs, state_values, distribution_entropy = self.policy.evaluate(old_states, old_actions)
             
@@ -171,6 +179,12 @@ class PPO:
             loss = -torch.min(surr1, surr2) + \
                     + self.args.loss_value_c*self.MseLoss(state_values, rewards) + \
                     - self.args.loss_entropy_c*distribution_entropy
+            #Make plotting
+            plot_dict['surr1']-=surr1.mean()/self.args.K_epochs
+            plot_dict['surr2']-=surr2.mean()/self.args.K_epochs
+            plot_dict['critic_loss']+=self.args.loss_value_c*self.MseLoss(state_values, rewards).mean()/self.args.K_epochs
+            plot_dict['actor_loss']+=(-torch.min(surr1, surr2) - self.args.loss_entropy_c*distribution_entropy).mean()/self.args.K_epochs
+            plot_dict['total_loss']+=loss.mean()/self.args.K_epochs
             
             # take gradient step
             self.optimizer.zero_grad()
@@ -179,3 +193,4 @@ class PPO:
             
         # Copy new weights into old policy:
         self.policy_old.load_state_dict(self.policy.state_dict())
+        return plot_dict
