@@ -94,10 +94,10 @@ class ur5GymEnv(gym.Env):
         pybullet.setRealTimeSimulation(False)
         # pybullet.configureDebugVisualizer(pybullet.COV_ENABLE_WIREFRAME,1)
         pybullet.resetDebugVisualizerCamera( cameraDistance=1.5, cameraYaw=5, cameraPitch=-30, cameraTargetPosition=[1.04,-0.06,0.14])
-
+        self.sphereUid = -1
         # setup robot arm:
         self.end_effector_index = 7
-        self.table = pybullet.loadURDF(TABLE_URDF_PATH, [0.2, 0, -0.6300], [0, 0, 0, 1])
+        #self.table = pybullet.loadURDF(TABLE_URDF_PATH, [0.2, 0, -0.6300], [0, 0, 0, 1])
         flags = pybullet.URDF_USE_SELF_COLLISION
         self.ur5 = pybullet.loadURDF(ROBOT_URDF_PATH, [0.8, 0, 0], [0, 0, 0, 1], flags=flags)
         self.num_joints = pybullet.getNumJoints(self.ur5)
@@ -160,31 +160,32 @@ class ur5GymEnv(gym.Env):
                         'yaw_down' : 12}
 
 
+
+        self.tree = pybullet.loadURDF(TREE_URDF_PATH, [2.3, 0.0, 0.0], [0, 0, 0, 1], globalScaling=1)
         self.scene = pywavefront.Wavefront('project_tree.obj', collect_faces=True)
         self.tree_reachble = []
         self.tree_target=self.getTreePoints(len(self.scene.vertices))
+        print(self.tree_target)
         self.reset()
         high = np.array([10]*self.observation.shape[0])
         self.observation_space = spaces.Box(-high, high, dtype='float32')
-        self.tree = pybullet.loadURDF(TREE_URDF_PATH, [2.3, 0.0, 0.0], [0, 0, 0, 1], globalScaling=1)
 
     def getTreePoints(self, count):
 
-        tree_oreint = pybullet.getQuaternionFromEuler([0,0,1.514])
+        
         point=[]
-        colSphereId = pybullet.createCollisionShape(pybullet.GEOM_SPHERE, radius=.005)
-        visualShapeId = pybullet.createVisualShape(pybullet.GEOM_SPHERE, radius=.005,rgbaColor =[1,0,0,1])
-        ur5_base_pos,_ = pybullet.getBasePositionAndOrientation(self.ur5);
-
+       
+        ur5_base_pos,_ = pybullet.getBasePositionAndOrientation(self.ur5)
+        tree_pos, tree_orient = pybullet.getBasePositionAndOrientation(self.tree)
+        tree_orient = pybullet.getQuaternionFromEuler([0,0,1.54])
         for i in range(count):
 
             scene_box = self.scene.vertices[i]
-
-            tree_w_frame = pybullet.multiplyTransforms([-.7,0,-.5],tree_oreint,[scene_box[0]*.1,scene_box[1]*.1,scene_box[2]*.1],[0,0,0,1])
-            position=[tree_w_frame[0][0],tree_w_frame[0][1],tree_w_frame[0][2]]
+            tree_w_frame = pybullet.multiplyTransforms(tree_pos,tree_orient,[scene_box[0]*.1,scene_box[1]*.1,scene_box[2]*.1],[0,0,0,1])
+            position=[tree_w_frame[0][0]-0.7,tree_w_frame[0][1],tree_w_frame[0][2]-.5]
             point.append(position)
-            # sphereUid = pybullet.createMultiBody(0.0, colSphereId, visualShapeId, [position[0],position[1],position[2]], [0,0,0,1])
-            dist=np.sqrt((np.square(position[0]))+((np.square(position[1]))+((np.square(position[2])))))
+           
+            dist=np.sqrt((np.square(ur5_base_pos[0]-position[0]))+((np.square(ur5_base_pos[1]-position[1]))+((np.square(ur5_base_pos[2]-position[2])))))
             if dist <= 1. and position[2]>0.2:
                 self.tree_reachble.append(position)
 
@@ -296,13 +297,17 @@ class ur5GymEnv(gym.Env):
         # pybullet.addUserDebugText('X', self.obj_pos, [0,1,0], 1) # display goal
         if self.randObjPos:
             self.initial_obj_pos = random.sample(self.tree_target,1)[0]
+        pybullet.removeBody(self.sphereUid)
+        colSphereId = pybullet.createCollisionShape(pybullet.GEOM_SPHERE, radius=.0002)
+        visualShapeId = pybullet.createVisualShape(pybullet.GEOM_SPHERE, radius=.02,rgbaColor =[1,0,0,1])
+        self.sphereUid = pybullet.createMultiBody(0.0, colSphereId, visualShapeId, [self.initial_obj_pos[0],self.initial_obj_pos[1],self.initial_obj_pos[2]], [0,0,0,1])
         #print(self.initial_obj_pos)
-        # print(self.tree_target)
-        # pybullet.resetBasePositionAndOrientation(self.obj, self.tree_target[1], [0.,0.,0.,1.0]) # reset object pos
-        # pybullet.resetBasePositionAndOrientation(self.obj, self.initial_obj_pos, [0.,0.,0.,1.0]) # reset object pos
-        # colSphereId = pybullet.createCollisionShape(pybullet.GEOM_SPHERE, radius=.005*3)
-        # visualShapeId = pybullet.createVisualShape(pybullet.GEOM_SPHERE, radius=.005*3, rgbaColor=[1, 0, 0, 1])
-        # sphereUid = pybullet.createMultiBody(0.0, colSphereId, visualShapeId, [self.initial_obj_pos[0], self.initial_obj_pos[1], self.initial_obj_pos[2]], [0, 0, 0, 1])
+        #print(self.tree_target)
+        #pybullet.resetBasePositionAndOrientation(self.obj, self.tree_target[1], [0.,0.,0.,1.0]) # reset object pos
+        #pybullet.resetBasePositionAndOrientation(self.obj, self.initial_obj_pos, [0.,0.,0.,1.0]) # reset object pos
+        #colSphereId = pybullet.createCollisionShape(pybullet.GEOM_SPHERE, radius=.005*3)
+        #visualShapeId = pybullet.createVisualShape(pybullet.GEOM_SPHERE, radius=.005*3, rgbaColor=[1, 0, 0, 1])
+        #sphereUid = pybullet.createMultiBody(0.0, colSphereId, visualShapeId, [self.initial_obj_pos[0], self.initial_obj_pos[1], self.initial_obj_pos[2]], [0, 0, 0, 1])
 
         # reset robot simulation and position:
         # joint_angles = (-0.34, -1.57, 1.80, -1.57, -1.57, 0.00) # pi/2 = 1.5707

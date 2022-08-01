@@ -29,13 +29,13 @@ def get_args():
     # arg('--env_name', type=str, default='ur5GymEnv', help='environment name')
     arg('--render', action='store_true', default=False, help='render the environment')
     arg('--randObjPos', action='store_true', default=True, help='fixed object position to pick up')
-    arg('--mel', type=int, default=200, help='max episode length')
+    arg('--mel', type=int, default=100, help='max episode length')
     arg('--repeat', type=int, default=1, help='repeat action')
     arg('--simgrip', action='store_true', default=False, help='simulated gripper')
     arg('--task', type=int, default=0, help='task to learn: 0 move, 1 pick-up, 2 drop')
     arg('--lp', type=float, default=0.1, help='learning parameter for task')
     # train:
-    arg('--seed', type=int, default=231, help='random seed')
+    arg('--seed', type=int, default=123, help='random seed')
     arg('--emb_size',   type=int, default=512, help='embedding size')
     arg('--solved_reward', type=int, default=0, help='stop training if avg_reward > solved_reward')
     arg('--log_interval', type=int, default=10, help='interval for log')
@@ -122,7 +122,11 @@ def main():
                 gif = True
             else:
                 gif = False
-            action = ppo.select_action(env.rgb, state, memory)
+            depth = torch.tensor(env.depth).to(args.device).unsqueeze(0)
+            memory.depth.append(depth)
+            image_features = ppo.depth_autoencoder(depth) #!!!!!!!!!!!!!!!!!!
+            #print(image_features[0].shape)
+            action = ppo.select_action(image_features[0].detach(), state, memory)
             state, reward_tuple, done, debug_img,  _ = env.step(action, gif)
             if gif:
                 ep_gif.append(debug_img)
@@ -131,7 +135,7 @@ def main():
             # Saving reward and is_terminals:
             memory.rewards.append(reward)
             memory.is_terminals.append(done)
-
+            
             # learning: 
             if time_step % args.update_timestep == 0:
                 loss_dict = ppo.update(memory)
@@ -150,7 +154,7 @@ def main():
 
         avg_length += t
         if ep_gif:
-            imageio.mimsave('./animation/episod_{}.gif'.format(i_episode), ep_gif)
+            imageio.mimsave('/Users/abhinav/Desktop/gradstuff/coursework/DeepLearning/tree_pruning_rl/animation_2/episode_{}.gif'.format(i_episode), ep_gif)
         # stop training if avg_reward > solved_reward
         #Update tensorboard
         writer.add_scalar("reward_goal/train", ep_goal_reward, i_episode)
