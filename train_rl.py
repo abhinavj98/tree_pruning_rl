@@ -123,6 +123,7 @@ def main():
             else:
                 gif = False
             depth = torch.tensor(env.depth).to(args.device).unsqueeze(0)
+            depth = (depth - 0.9)*10
             memory.depth.append(depth)
             image_features = ppo.depth_autoencoder(depth.unsqueeze(0)) #!!!!!!!!!!!!!!!!!!
             #print(image_features[0].shape)

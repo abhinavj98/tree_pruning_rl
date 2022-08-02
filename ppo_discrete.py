@@ -67,7 +67,7 @@ class AutoEncoder(nn.Module):
             nn.ConvTranspose2d(64, 32, 3, stride=2, output_padding=1, padding=1),  # b, 32, 224, 224
             nn.ReLU(),
             nn.Conv2d(32, 1, 3, padding = 'same'),  # b, 4, 224, 224
-            nn.ReLU()
+            nn.Sigmoid()
         )
 
     def forward(self, x):
