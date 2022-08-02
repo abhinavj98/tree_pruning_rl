@@ -30,7 +30,7 @@ class Memory:
         del self.logprobs[:]
         del self.rewards[:]
         del self.is_terminals[:]
-        if len(self.depth > 1000):
+        if len(self.depth) > 1000:
             del self.depth[:-1000]
 
 class AutoEncoder(nn.Module):

@@ -124,7 +124,7 @@ def main():
                 gif = False
             depth = torch.tensor(env.depth).to(args.device).unsqueeze(0)
             memory.depth.append(depth)
-            image_features = ppo.depth_autoencoder(depth) #!!!!!!!!!!!!!!!!!!
+            image_features = ppo.depth_autoencoder(depth.unsqueeze(0)) #!!!!!!!!!!!!!!!!!!
             #print(image_features[0].shape)
             action = ppo.select_action(image_features[0].detach(), state, memory)
             state, reward_tuple, done, debug_img,  _ = env.step(action, gif)
