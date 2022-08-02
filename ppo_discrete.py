@@ -66,7 +66,7 @@ class AutoEncoder(nn.Module):
             nn.ReLU(),
             nn.ConvTranspose2d(64, 32, 3, stride=2, output_padding=1, padding=1),  # b, 32, 224, 224
             nn.ReLU(),
-            nn.Conv2d(32, 1, 3, padding = 'same'),  # b, 4, 224, 224
+            nn.Conv2d(32, 1, 3, padding = 'same'),  # b, 1, 224, 224
             nn.Sigmoid()
         )
 
@@ -89,9 +89,9 @@ class ActorCritic(nn.Module):
                 nn.ReLU(),
                 nn.Linear(emb_size, emb_size),
                 nn.ReLU(),
-                nn.Linear(emb_size, emb_size),
+                nn.Linear(emb_size, emb_ds),
                 nn.ReLU(),
-                nn.Linear(emb_size, action_dim),
+                nn.Linear(emb_ds, action_dim),
                 # nn.Tanh()
                 nn.Softmax(dim=-1) #discrete action
                 )
@@ -101,10 +101,10 @@ class ActorCritic(nn.Module):
                 nn.ReLU(),
                 nn.Linear(emb_size, emb_size),
                 nn.ReLU(),
-                nn.Linear(emb_size, emb_size),
+                nn.Linear(emb_size, emb_ds),
                 nn.ReLU(),
                 # nn.Tanh(),
-                nn.Linear(emb_size, 1)
+                nn.Linear(emb_ds, 1)
                 )
         # self.action_var = torch.full((action_dim,), action_std*action_std).to(self.device)
         # discrete action

@@ -130,7 +130,7 @@ def main():
             action = ppo.select_action(image_features[0].detach(), state, memory)
             state, reward_tuple, done, debug_img,  _ = env.step(action, gif)
             if gif:
-                ep_gif.append(debug_img)
+                ep_gif.append(torch.tensor(debug_img))
 
             reward = reward_tuple[0]
             # Saving reward and is_terminals:
@@ -155,7 +155,11 @@ def main():
 
         avg_length += t
         if ep_gif:
-            imageio.mimsave('/Users/abhinav/Desktop/gradstuff/coursework/DeepLearning/tree_pruning_rl/animation_2/episode_{}.gif'.format(i_episode), ep_gif)
+            ep_gif = torch.stack(ep_gif).unsqueeze(0)
+            ep_gif = ep_gif.permute(0,4,1,2,3)
+            print(ep_gif.shape)
+            writer.add_video("episode/train", ep_gif , i_episode)
+            #imageio.mimsave('/Users/abhinav/Desktop/gradstuff/coursework/DeepLearning/tree_pruning_rl/animation_2/episode_{}.gif'.format(i_episode), ep_gif)
         # stop training if avg_reward > solved_reward
         #Update tensorboard
         writer.add_scalar("reward_goal/train", ep_goal_reward, i_episode)
