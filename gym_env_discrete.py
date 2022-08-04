@@ -330,7 +330,7 @@ class ur5GymEnv(gym.Env):
         deltaPose = np.array([0, 0, 0])
         deltaorient= np.array([0, 0, 0])
         angle_scale = 1
-        step_size =  2
+        step_size =  0.5
 
         if action == self.actions['up']:
             deltaPose = [step_size, 0, 0,]
@@ -449,20 +449,20 @@ class ur5GymEnv(gym.Env):
 
         # print(approach_velocity)
         # input()
-        reward += self.target_reward*10 #Mean around 0 -> Change in distance
-        dist_reward = self.target_reward*10
+        reward += self.target_reward*50 #Mean around 0 -> Change in distance
+        dist_reward = self.target_reward*50
         # task 0: reach object:
         terminate_reward = 0
         if self.target_dist < self.learning_param:  # and approach_velocity < 0.05:
             self.terminated = True
             terminate_reward = 5
-            reward += 50
+            reward += 5
             print('Successful!')
 
         # check collisions:
         collision = False
         if self.check_collisions():
-            reward += -1
+            reward += -.25
             collision = True
             #print('Collision!')
         reward+= -0.05
