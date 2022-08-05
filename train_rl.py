@@ -16,8 +16,10 @@ import gym
 import random
 from ppo_discrete import PPO, Memory, ActorCritic
 from gym_env_discrete import ur5GymEnv
+import torchvision
 import imageio
 from torch.utils.tensorboard import SummaryWriter
+import cv2
 writer = SummaryWriter()
 
 title = 'PyBullet UR5 robot'
@@ -129,14 +131,21 @@ def main():
             #print(image_features[0].shape)
             action = ppo.select_action(image_features[0].detach(), state, memory)
             state, reward_tuple, done, debug_img,  _ = env.step(action, gif)
-            if gif:
-                ep_gif.append(torch.tensor(debug_img))
+          
 
             reward = reward_tuple[0]
             # Saving reward and is_terminals:
             memory.rewards.append(reward)
             memory.is_terminals.append(done)
-            
+            if gif:
+                critic_value = ppo.policy.critic(memory.states[-1])
+                debug_img = cv2.putText(debug_img, "Critic: "+str(critic_value.item()), (0,50), cv2.FONT_HERSHEY_SIMPLEX, 
+                    1, (255,0,0), 2, cv2.LINE_AA)
+                debug_img = cv2.putText(debug_img, "Reward: "+str(memory.rewards[-1]), (0,80), cv2.FONT_HERSHEY_SIMPLEX, 
+                    1, (255,0,0), 2, cv2.LINE_AA)
+                debug_img = cv2.putText(debug_img, "Action: "+str(env.rev_actions[int(action)+1]), (0,110), cv2.FONT_HERSHEY_SIMPLEX, 
+                    1, (255,0,0), 2, cv2.LINE_AA)
+                ep_gif.append(torch.tensor(debug_img))
             # learning: 
             if time_step % args.update_timestep == 0:
                 loss_dict = ppo.update(memory)
@@ -144,6 +153,8 @@ def main():
                 time_step = 0
                 for k,v in loss_dict.items():
                     writer.add_scalar("{}/train".format(k), v, i_episode)
+                ae_image = torchvision.utils.make_grid([depth, image_features[1][0]])
+                writer.add_image("train/ae", ae_image, i_episode)
             running_reward += reward
             ep_total += reward
             ep_goal_reward += reward_tuple[1]

@@ -159,7 +159,7 @@ class ur5GymEnv(gym.Env):
                         'yaw_up' : 11,
                         'yaw_down' : 12}
 
-
+        self.rev_actions = {v: k for k,v in self.actions.items()}
 
         self.tree = pybullet.loadURDF(TREE_URDF_PATH, [2.3, 0.0, 0.0], [0, 0, 0, 1], globalScaling=1)
         self.scene = pywavefront.Wavefront('project_tree.obj', collect_faces=True)
@@ -328,7 +328,7 @@ class ur5GymEnv(gym.Env):
     def step(self, action, debug = False):
         #discrete action
         deltaPose = np.array([0, 0, 0])
-        deltaorient= np.array([0, 0, 0])
+        deltaOrient= np.array([0, 0, 0])
         angle_scale = 1
         step_size =  0.5
 
@@ -377,10 +377,10 @@ class ur5GymEnv(gym.Env):
         # add delta position:
         # new_p = np.array(cur_p[0]) + arm_action
         new_position = np.array(cur_p[0]) + deltaPose
-        new_oreintation=np.array(cur_p[1]) + pybullet.getQuaternionFromEuler(deltaorient)
+        new_orientation=np.array(cur_p[1]) + pybullet.getQuaternionFromEuler(deltaOrient)
         # actuate:
 
-        joint_angles = self.calculate_ik(new_position, new_oreintation) # XYZ and angles set to zero
+        joint_angles = self.calculate_ik(new_position, new_orientation) # XYZ and angles set to zero
         self.set_joint_angles(joint_angles)
         cur_p = self.get_current_pose()
         rgbd = self.set_camera(cur_p[0], cur_p[1])
