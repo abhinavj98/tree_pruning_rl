@@ -145,6 +145,10 @@ def main():
                     1, (255,0,0), 2, cv2.LINE_AA)
                 debug_img = cv2.putText(debug_img, "Action: "+str(env.rev_actions[int(action)+1]), (0,110), cv2.FONT_HERSHEY_SIMPLEX, 
                     1, (255,0,0), 2, cv2.LINE_AA)
+                debug_img = cv2.putText(debug_img, "Current: "+str(env.achieved_goal), (0,140), cv2.FONT_HERSHEY_SIMPLEX, 
+                    1, (255,0,0), 2, cv2.LINE_AA)
+                debug_img = cv2.putText(debug_img, "Goal: "+str(env.desired_goal), (0,170), cv2.FONT_HERSHEY_SIMPLEX, 
+                    1, (255,0,0), 2, cv2.LINE_AA)
                 ep_gif.append(torch.tensor(debug_img))
             # learning: 
             if time_step % args.update_timestep == 0:
