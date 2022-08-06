@@ -23,13 +23,14 @@ class Memory:
         self.rewards = []
         self.is_terminals = []
         self.depth = []
-    
+        self.image_features = []
     def clear_memory(self):
         del self.actions[:]
         del self.states[:]
         del self.logprobs[:]
         del self.rewards[:]
         del self.is_terminals[:]
+        del self.image_features[:]
         if len(self.depth) > 1000:
             del self.depth[:-1000]
 
@@ -75,37 +76,61 @@ class AutoEncoder(nn.Module):
         recon = self.decoder(encoding)
         return encoding,recon
 
+class Actor(nn.Module):
+    def __init__(self, device, state_dim, emb_size, action_dim, action_std):
+        super(Actor, self).__init__()
+        emb_ds = int(emb_size/4)
+        self.conv = nn.Sequential(
+                    nn.Conv2d(256, 256, 1, padding='same'),
+                    nn.AvgPool2d(7)
+                    )
+        self.dense =  nn.Sequential(
+                    nn.Linear(state_dim, emb_size),
+                    nn.ReLU(),
+                    nn.Linear(emb_size, emb_size),
+                    nn.ReLU(),
+                    nn.Linear(emb_size, emb_ds),
+                    nn.ReLU(),
+                    nn.Linear(emb_ds, action_dim),
+                    nn.Softmax(dim=-1) #discrete action
+                    )
+    def forward(self, image, state):
+        conv_head = self.conv(image)
+        dense_input = torch.cat((conv_head.view(conv_head.shape[0], -1), state),1) 
+        action = self.dense(dense_input)
+        return action
+
+class Critic(nn.Module):
+    def __init__(self, device, state_dim, emb_size, action_dim, action_std):
+        super(Critic, self).__init__()
+        emb_ds = int(emb_size/4)
+        self.conv = nn.Sequential(
+                    nn.Conv2d(256, 256, 1, padding='same'),
+                    nn.AvgPool2d(7)
+                    )
+        self.dense = nn.Sequential(
+                nn.Linear(state_dim, emb_size),
+                nn.ReLU(),
+                nn.Linear(emb_size, emb_size),
+                nn.ReLU(),
+                nn.Linear(emb_size, emb_ds),
+                nn.ReLU(),
+                nn.Linear(emb_ds, 1)
+                )
+    def forward(self, image, state):
+        conv_head = self.conv(image)
+        dense_input = torch.cat((conv_head.view(conv_head.shape[0], -1), state),1) 
+        value = self.dense(dense_input)
+        return value
+
+
 class ActorCritic(nn.Module):
     def __init__(self, device, state_dim, emb_size, action_dim, action_std):
         self.device = device
         super(ActorCritic, self).__init__()
-        # action mean range -1 to 1
-        #self.vgg = model.vgg16(pretrained=True).to(device).eval()
-        ##   param.requires_grad = False
-        #actor
-        emb_ds = int(emb_size/4)
-        self.actor =  nn.Sequential(
-                nn.Linear(state_dim, emb_size),
-                nn.ReLU(),
-                nn.Linear(emb_size, emb_size),
-                nn.ReLU(),
-                nn.Linear(emb_size, emb_ds),
-                nn.ReLU(),
-                nn.Linear(emb_ds, action_dim),
-                # nn.Tanh()
-                nn.Softmax(dim=-1) #discrete action
-                )
+        self.actor = Actor(device, state_dim, emb_size, action_dim, action_std)
         # critic
-        self.critic = nn.Sequential(
-                nn.Linear(state_dim, emb_size),
-                nn.ReLU(),
-                nn.Linear(emb_size, emb_size),
-                nn.ReLU(),
-                nn.Linear(emb_size, emb_ds),
-                nn.ReLU(),
-                # nn.Tanh(),
-                nn.Linear(emb_ds, 1)
-                )
+        self.critic = Critic(device, state_dim, emb_size, action_dim, action_std)
         # self.action_var = torch.full((action_dim,), action_std*action_std).to(self.device)
         # discrete action
     def forward(self):
@@ -115,7 +140,7 @@ class ActorCritic(nn.Module):
         #self.image_features = self.vgg.features(rgb.unsqueeze(0)).detach()
         #self.image_features = torch.nn.functional.avg_pool2d(self.image_features,7)
         #print(image_features.shape)
-        state = torch.cat((image_features.view(-1).unsqueeze(0), state, state, state),1) 
+        #state = torch.cat((image_features.view(-1).unsqueeze(0), state, state, state),1) 
         #action_mean = self.actor(state)
         #cov_mat = torch.diag(self.action_var).to(self.device)
         # discrete action
@@ -123,19 +148,20 @@ class ActorCritic(nn.Module):
         # cov_mat = torch.diag(self.action_var).to(self.device)
         #print(state.shape, image_features.view(-1).shape)
         # distribution = MultivariateNormal(action_mean, cov_mat)
-        action_probs = self.actor(state)
+        state = torch.cat((state, state, state),1) 
+        action_probs = self.actor(image_features, state)
         distribution = Categorical(action_probs)
 
         action = distribution.sample()
         action_logprob = distribution.log_prob(action)
-        
+        memory.image_features.append(image_features)
         memory.states.append(state)
         memory.actions.append(action)
         memory.logprobs.append(action_logprob)
         
         return action.detach()
     
-    def evaluate(self, state, action):
+    def evaluate(self, state, image_features, action):
         # discrete action
         # action_mean = self.actor(state)
         #
@@ -143,12 +169,12 @@ class ActorCritic(nn.Module):
         # cov_mat = torch.diag_embed(action_var).to(self.device)
         #
         # distribution = MultivariateNormal(action_mean, cov_mat)
-        action_probs = self.actor(state)
+        action_probs = self.actor(image_features, state)
         distribution = Categorical(action_probs)
         
         action_logprobs = distribution.log_prob(action)
         distribution_entropy = distribution.entropy()
-        state_value = self.critic(state)
+        state_value = self.critic(image_features, state)
         
         return action_logprobs, torch.squeeze(state_value), distribution_entropy
 
@@ -160,7 +186,7 @@ class PPO:
         self.env = env
         self.device = self.args.device
 
-        self.state_dim = self.env.observation_space.shape[0]*3 + 7*7*256  #!!!Get this right
+        self.state_dim = self.env.observation_space.shape[0]*3 + 256  #!!!Get this right
         #print('--------------------------------')
         #print(self.env.action_space.shape)
         #self.action_dim = self.env.action_space.shape[0]
@@ -201,6 +227,7 @@ class PPO:
         old_states = torch.squeeze(torch.stack(memory.states).to(self.device), 1).detach()
         old_actions = torch.squeeze(torch.stack(memory.actions).to(self.device), 1).detach()
         old_logprobs = torch.squeeze(torch.stack(memory.logprobs), 1).to(self.device).detach()
+        old_image_features = torch.squeeze(torch.stack(memory.image_features), 1).to(self.device).detach()
         
          #Plotting
         plot_dict = {}
@@ -214,7 +241,7 @@ class PPO:
         for _ in range(self.args.K_epochs):
            
             # Evaluating old actions and values :
-            logprobs, state_values, distribution_entropy = self.policy.evaluate(old_states, old_actions)
+            logprobs, state_values, distribution_entropy = self.policy.evaluate(old_states, old_image_features, old_actions)
             
             # Finding the ratio (pi_theta / pi_theta__old):
             ratios = torch.exp(logprobs - old_logprobs.detach())

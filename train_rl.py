@@ -138,7 +138,7 @@ def main():
             memory.rewards.append(reward)
             memory.is_terminals.append(done)
             if gif:
-                critic_value = ppo.policy.critic(memory.states[-1])
+                critic_value = ppo.policy.critic(memory.image_features[-1], memory.states[-1])
                 debug_img = cv2.putText(debug_img, "Critic: "+str(critic_value.item()), (0,50), cv2.FONT_HERSHEY_SIMPLEX, 
                     1, (255,0,0), 2, cv2.LINE_AA)
                 debug_img = cv2.putText(debug_img, "Reward: "+str(memory.rewards[-1]), (0,80), cv2.FONT_HERSHEY_SIMPLEX, 
