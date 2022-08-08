@@ -4,6 +4,7 @@
 # PyBullet UR-5 from https://github.com/josepdaniel/UR5Bullet
 # PPO from: https://github.com/nikhilbarhate99/PPO-PyTorch/blob/master/PPO_continuous.py
 
+from os import stat
 import torch
 import torch.nn as nn
 from torch.distributions import MultivariateNormal
@@ -81,8 +82,12 @@ class Actor(nn.Module):
         super(Actor, self).__init__()
         emb_ds = int(emb_size/4)
         self.conv = nn.Sequential(
-                    nn.Conv2d(256, 256, 1, padding='same'),
-                    nn.AvgPool2d(7)
+                    nn.Conv2d(256, 128, 1, padding='same'),
+                    nn.ReLU(),
+                    nn.Conv2d(128, 64, 1, padding='same'),
+                    nn.ReLU(),
+                    nn.Conv2d(64, 32, 1, padding='same'),
+                    nn.ReLU(),
                     )
         self.dense =  nn.Sequential(
                     nn.Linear(state_dim, emb_size),
@@ -95,9 +100,9 @@ class Actor(nn.Module):
                     nn.Softmax(dim=-1) #discrete action
                     )
     def forward(self, image, state):
-        conv_head = self.conv(image)
-        dense_input = torch.cat((conv_head.view(conv_head.shape[0], -1), state),1) 
-        action = self.dense(dense_input)
+        #conv_head = self.conv(image)
+        #dense_input = torch.cat((conv_head.view(conv_head.shape[0], -1), state),1) 
+        action = self.dense(state)
         return action
 
 class Critic(nn.Module):
@@ -105,8 +110,12 @@ class Critic(nn.Module):
         super(Critic, self).__init__()
         emb_ds = int(emb_size/4)
         self.conv = nn.Sequential(
-                    nn.Conv2d(256, 256, 1, padding='same'),
-                    nn.AvgPool2d(7)
+                    nn.Conv2d(256, 128, 1, padding='same'),
+                    nn.ReLU(),
+                    nn.Conv2d(128, 64, 1, padding='same'),
+                    nn.ReLU(),
+                    nn.Conv2d(64, 32, 1, padding='same'),
+                    nn.ReLU(),
                     )
         self.dense = nn.Sequential(
                 nn.Linear(state_dim, emb_size),
@@ -118,9 +127,9 @@ class Critic(nn.Module):
                 nn.Linear(emb_ds, 1)
                 )
     def forward(self, image, state):
-        conv_head = self.conv(image)
-        dense_input = torch.cat((conv_head.view(conv_head.shape[0], -1), state),1) 
-        value = self.dense(dense_input)
+        #conv_head = self.conv(image)
+        #dense_input = torch.cat((conv_head.view(conv_head.shape[0], -1), state),1) 
+        value = self.dense(state)
         return value
 
 
@@ -186,7 +195,7 @@ class PPO:
         self.env = env
         self.device = self.args.device
 
-        self.state_dim = self.env.observation_space.shape[0]*3 + 256  #!!!Get this right
+        self.state_dim = self.env.observation_space.shape[0]*3 #+ 7*7*32  #!!!Get this right
         #print('--------------------------------')
         #print(self.env.action_space.shape)
         #self.action_dim = self.env.action_space.shape[0]
