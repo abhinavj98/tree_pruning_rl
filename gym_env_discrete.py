@@ -93,7 +93,7 @@ class ur5GymEnv(gym.Env):
         pybullet.setGravity(0,0,-10)
         pybullet.setRealTimeSimulation(False)
         # pybullet.configureDebugVisualizer(pybullet.COV_ENABLE_WIREFRAME,1)
-        pybullet.resetDebugVisualizerCamera( cameraDistance=1.5, cameraYaw=73.95, cameraPitch=-38.48, cameraTargetPosition=[1.04,-0.06,0.14])
+        pybullet.resetDebugVisualizerCamera( cameraDistance=1.5, cameraYaw=-73.95, cameraPitch=-38.48, cameraTargetPosition=[1.04,-0.06,0.14])
         self.sphereUid = -1
         # setup robot arm:
         self.end_effector_index = 7
