@@ -18,6 +18,8 @@ from ppo_discrete import PPO, Memory, ActorCritic
 from gym_env_discrete import ur5GymEnv
 import torchvision
 import imageio
+import matplotlib
+import matplotlib.pyplot as plt
 from torch.utils.tensorboard import SummaryWriter
 import cv2
 writer = SummaryWriter()
@@ -149,6 +151,14 @@ def main():
                     1, (255,0,0), 2, cv2.LINE_AA)
                 debug_img = cv2.putText(debug_img, "Goal: "+str(env.desired_goal), (0,170), cv2.FONT_HERSHEY_SIMPLEX, 
                     1, (255,0,0), 2, cv2.LINE_AA)
+                fig = plt.figure(figsize=(1024, 768), dpi = 1)
+                plt.plot(memory.logprobs[-1].detach().numpy())
+                data = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.float32)
+                data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+                #print(fig.canvas.get_width_height()[::-1] + (3,))
+                #print(data.shape)
+                debug_img = torchvision.utils.make_grid([debug_img, data])
+                plt.close(fig)
                 ep_gif.append(torch.tensor(debug_img))
             # learning: 
             if time_step % args.update_timestep == 0:

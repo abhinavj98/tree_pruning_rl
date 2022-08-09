@@ -93,7 +93,7 @@ class ur5GymEnv(gym.Env):
         pybullet.setGravity(0,0,-10)
         pybullet.setRealTimeSimulation(False)
         # pybullet.configureDebugVisualizer(pybullet.COV_ENABLE_WIREFRAME,1)
-        pybullet.resetDebugVisualizerCamera( cameraDistance=1.5, cameraYaw=5, cameraPitch=-30, cameraTargetPosition=[1.04,-0.06,0.14])
+        pybullet.resetDebugVisualizerCamera( cameraDistance=1.5, cameraYaw=73.95, cameraPitch=-38.48, cameraTargetPosition=[1.04,-0.06,0.14])
         self.sphereUid = -1
         # setup robot arm:
         self.end_effector_index = 7
@@ -130,8 +130,8 @@ class ur5GymEnv(gym.Env):
         self.name = 'ur5GymEnv'
         self.simulatedGripper = simulatedGripper
         # discrete action
-        # self.action_dim = 4
-        self.action_dim = 12
+        self.action_dim = 4
+        #self.action_dim = 12
         self.stepCounter = 0
         self.maxSteps = maxSteps
         self.terminated = False
@@ -145,7 +145,7 @@ class ur5GymEnv(gym.Env):
         # self._action_bound = 1.0 # delta limits
         # action_high = np.array([self._action_bound] * self.action_dim)
         # self.action_space = spaces.Box(-action_high, action_high, dtype='float32')
-        self.action_space = spaces.Discrete(12)
+        self.action_space = spaces.Discrete(4)
         self.actions = {'up':1,
                         'down':2,
                         'left' : 3,
