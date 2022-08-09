@@ -94,9 +94,9 @@ class Actor(nn.Module):
                     nn.ReLU(),
                     nn.Linear(emb_size, emb_size),
                     nn.ReLU(),
-                    nn.Linear(emb_size, emb_ds),
-                    nn.ReLU(),
-                    nn.Linear(emb_ds, action_dim),
+                    #nn.Linear(emb_size, emb_ds),
+                    #nn.ReLU(),
+                    nn.Linear(emb_size, action_dim),
                     nn.Softmax(dim=-1) #discrete action
                     )
     def forward(self, image, state):
@@ -122,9 +122,10 @@ class Critic(nn.Module):
                 nn.ReLU(),
                 nn.Linear(emb_size, emb_size),
                 nn.ReLU(),
-                nn.Linear(emb_size, emb_ds),
-                nn.ReLU(),
-                nn.Linear(emb_ds, 1)
+                #nn.Linear(emb_size, emb_ds),
+                #nn.ReLU(),
+                nn.Linear(emb_size, 1),
+		nn.Tanh()
                 )
     def forward(self, image, state):
         #conv_head = self.conv(image)
@@ -157,7 +158,8 @@ class ActorCritic(nn.Module):
         # cov_mat = torch.diag(self.action_var).to(self.device)
         #print(state.shape, image_features.view(-1).shape)
         # distribution = MultivariateNormal(action_mean, cov_mat)
-        state = torch.cat((state, state, state),1) 
+        state = torch.cat((state, state, state),1)
+        #print(state) 
         action_probs = self.actor(image_features, state)
         distribution = Categorical(action_probs)
 

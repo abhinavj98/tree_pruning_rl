@@ -90,7 +90,7 @@ class ur5GymEnv(gym.Env):
             pybullet.connect(pybullet.DIRECT)
 
         pybullet.setTimeStep(1./240.)
-        pybullet.setGravity(0,0,-10)
+        pybullet.setGravity(0,0,0)
         pybullet.setRealTimeSimulation(False)
         # pybullet.configureDebugVisualizer(pybullet.COV_ENABLE_WIREFRAME,1)
         pybullet.resetDebugVisualizerCamera( cameraDistance=1.5, cameraYaw=-73.95, cameraPitch=-38.48, cameraTargetPosition=[1.04,-0.06,0.14])
@@ -130,7 +130,7 @@ class ur5GymEnv(gym.Env):
         self.name = 'ur5GymEnv'
         self.simulatedGripper = simulatedGripper
         # discrete action
-        self.action_dim = 4
+        self.action_dim = 6
         #self.action_dim = 12
         self.stepCounter = 0
         self.maxSteps = maxSteps
@@ -234,7 +234,7 @@ class ur5GymEnv(gym.Env):
 
     def calculate_ik(self, position, orientation):
         #discrete actions
-        # quaternion = pybullet.getQuaternionFromEuler(orientation)
+        #quaternion = pybullet.getQuaternionFromEuler(orientation)
         quaternion = orientation
 
         # quaternion = (0,1,0,1)
@@ -330,7 +330,7 @@ class ur5GymEnv(gym.Env):
         deltaPose = np.array([0, 0, 0])
         deltaOrient= np.array([0, 0, 0])
         angle_scale = 1
-        step_size =  0.05
+        step_size =  0.15
 
         if action == self.actions['up']:
             deltaPose = [step_size, 0, 0,]
@@ -378,7 +378,7 @@ class ur5GymEnv(gym.Env):
         # new_p = np.array(cur_p[0]) + arm_action
         new_position = np.array(cur_p[0]) + deltaPose
         new_orientation=np.array(cur_p[1]) + pybullet.getQuaternionFromEuler(deltaOrient)
-        new_orientation = self.ur5_or #iashdiuhs
+        #new_orientation = self.ur5_or #iashdiuhs
         # actuate:
 
         joint_angles = self.calculate_ik(new_position, new_orientation) # XYZ and angles set to zero
@@ -450,8 +450,8 @@ class ur5GymEnv(gym.Env):
 
         # print(approach_velocity)
         # input()
-        reward += self.target_reward*10 #Mean around 0 -> Change in distance
-        dist_reward = self.target_reward*10
+        reward += self.target_reward*20 #Mean around 0 -> Change in distance
+        dist_reward = self.target_reward*20
         # task 0: reach object:
         terminate_reward = 0
         if self.target_dist < self.learning_param:  # and approach_velocity < 0.05:
