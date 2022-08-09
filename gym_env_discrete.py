@@ -330,7 +330,7 @@ class ur5GymEnv(gym.Env):
         deltaPose = np.array([0, 0, 0])
         deltaOrient= np.array([0, 0, 0])
         angle_scale = 1
-        step_size =  0.5
+        step_size =  0.05
 
         if action == self.actions['up']:
             deltaPose = [step_size, 0, 0,]
@@ -378,6 +378,7 @@ class ur5GymEnv(gym.Env):
         # new_p = np.array(cur_p[0]) + arm_action
         new_position = np.array(cur_p[0]) + deltaPose
         new_orientation=np.array(cur_p[1]) + pybullet.getQuaternionFromEuler(deltaOrient)
+        new_orientation = self.ur5_or #iashdiuhs
         # actuate:
 
         joint_angles = self.calculate_ik(new_position, new_orientation) # XYZ and angles set to zero
