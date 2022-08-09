@@ -145,13 +145,13 @@ class ur5GymEnv(gym.Env):
         # self._action_bound = 1.0 # delta limits
         # action_high = np.array([self._action_bound] * self.action_dim)
         # self.action_space = spaces.Box(-action_high, action_high, dtype='float32')
-        self.action_space = spaces.Discrete(4)
-        self.actions = {'up':1,
-                        'down':2,
-                        'left' : 3,
-                        'right' : 4,
-                        'forward' : 5,
-                        'backward' : 6,
+        self.action_space = spaces.Discrete(6)
+        self.actions = {'+x':1,
+                        '-x':2,
+                        '+y' : 3,
+                        '-y' : 4,
+                        '+z' : 5,
+                        '-z' : 6,
                         'roll_up' : 7,
                         'roll_down': 8,
                         'pitch_up' : 9,
@@ -330,24 +330,24 @@ class ur5GymEnv(gym.Env):
         deltaPose = np.array([0, 0, 0])
         deltaOrient= np.array([0, 0, 0])
         angle_scale = 1
-        step_size =  0.15
+        step_size =  0.05
 
-        if action == self.actions['up']:
+        if action == self.actions['+x']:
             deltaPose = [step_size, 0, 0,]
 
-        if action == self.actions['down']:
+        if action == self.actions['-x']:
             deltaPose = [-step_size, 0, 0]
 
-        if action == self.actions['left']:
+        if action == self.actions['+y']:
             deltaPose = [0, step_size, 0]
 
-        if action == self.actions['right']:
+        if action == self.actions['-y']:
             deltaPose = [0, -step_size, 0]
 
-        if action == self.actions['forward']:
+        if action == self.actions['+z']:
             deltaPose = [0, 0, step_size]
 
-        if action == self.actions['backward']:
+        if action == self.actions['-z']:
             deltaPose = [0, 0, -step_size]
 
         if action == self.actions['roll_up']:
@@ -456,14 +456,14 @@ class ur5GymEnv(gym.Env):
         terminate_reward = 0
         if self.target_dist < self.learning_param:  # and approach_velocity < 0.05:
             self.terminated = True
-            terminate_reward = 1.5
-            reward += 1.5
+            terminate_reward = 2
+            reward += 2
             print('Successful!')
 
         # check collisions:
         collision = False
         if self.check_collisions():
-            reward += -0
+            reward += -0.05
             collision = True
             #print('Collision!')
         reward+= -0.05

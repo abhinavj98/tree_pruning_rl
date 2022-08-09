@@ -124,8 +124,7 @@ class Critic(nn.Module):
                 nn.ReLU(),
                 #nn.Linear(emb_size, emb_ds),
                 #nn.ReLU(),
-                nn.Linear(emb_size, 1),
-		nn.Tanh()
+                nn.Linear(emb_size, 1)
                 )
     def forward(self, image, state):
         #conv_head = self.conv(image)
@@ -279,20 +278,21 @@ class PPO:
         # Copy new weights into old policy:
         self.policy_old.load_state_dict(self.policy.state_dict())
         #print(memory.depth)
-        depth_ds = torch.stack(memory.depth, 0).to(self.device).detach()
-        #recon_out = torch.squeeze(torch.stack(memory.rgbd_recon).to(self.device), 1)
+        if False:
+            depth_ds = torch.stack(memory.depth, 0).to(self.device).detach()
+            #recon_out = torch.squeeze(torch.stack(memory.rgbd_recon).to(self.device), 1)
 
-        ae_dataset = TensorDataset(depth_ds, depth_ds) # create your datset
-        ae_dataloader = DataLoader(ae_dataset, batch_size=32, shuffle=True) # create your dataloader
-        total_loss = 0
-        ae_loss = 0
-
-        for depth_data in ae_dataloader:
-            _, recon = self.depth_autoencoder(depth_data[0])
-            ae_loss = self.MseLoss(recon, depth_data[1])
-            total_loss += ae_loss.data
-            self.autoencoder_optimizer.zero_grad()
-            ae_loss.backward()
-            self.autoencoder_optimizer.step()
-        plot_dict['ae_loss']=total_loss
+            ae_dataset = TensorDataset(depth_ds, depth_ds) # create your datset
+            ae_dataloader = DataLoader(ae_dataset, batch_size=32, shuffle=True) # create your dataloader
+            total_loss = 0
+            ae_loss = 0
+            
+            for depth_data in ae_dataloader:
+                _, recon = self.depth_autoencoder(depth_data[0])
+                ae_loss = self.MseLoss(recon, depth_data[1])
+                total_loss += ae_loss.data
+                self.autoencoder_optimizer.zero_grad()
+                ae_loss.backward()
+                self.autoencoder_optimizer.step()
+            plot_dict['ae_loss']=total_loss
         return plot_dict

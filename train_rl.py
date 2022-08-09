@@ -110,7 +110,7 @@ def main():
     running_reward = 0
     avg_length = 0
     time_step = 0
-
+    
     # training loop:
     print('Starting training with learning_param:', args.lp)
     for i_episode in range(1, args.max_episodes+1):
@@ -131,6 +131,7 @@ def main():
             memory.depth.append(depth)
             image_features = ppo.depth_autoencoder(depth.unsqueeze(0)) #!!!!!!!!!!!!!!!!!!
             #print(image_features[0].shape)
+            #writer.add_graph(ppo.policy, state)
             action = ppo.select_action(image_features[0].detach(), state, memory)
             state, reward_tuple, done, debug_img,  _ = env.step(action, gif)
           
