@@ -202,7 +202,7 @@ class PPO:
         self.train_ae = True
     
     def select_action(self, depth_features, state):
-        state = torch.FloatTensor(state.reshape(1, -1)).to(self.device)
+        #state = torch.FloatTensor(state.reshape(1, -1)).to(self.device)
         #image_features_avg_pooled = torch.nn.functional.avg_pool2d(depth,7)
         action = self.policy_old.act(depth_features, state)
         return action[0].cpu().data.numpy().flatten(), action[1]
