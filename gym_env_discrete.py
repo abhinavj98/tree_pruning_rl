@@ -146,10 +146,10 @@ class ur5GymEnv(gym.Env):
         # action_high = np.array([self._action_bound] * self.action_dim)
         # self.action_space = spaces.Box(-action_high, action_high, dtype='float32')
         self.action_space = spaces.Discrete(6)
-        self.actions = {'+x':1,
-                        '-x':2,
-                        '+y' : 3,
-                        '-y' : 4,
+        self.actions = {'-x':1,
+                        '+x':2,
+                        '-y' : 3,
+                        '+y' : 4,
                         '+z' : 5,
                         '-z' : 6,
                         'roll_up' : 7,
@@ -463,7 +463,7 @@ class ur5GymEnv(gym.Env):
         # check collisions:
         collision = False
         if self.check_collisions():
-            reward += -0.05
+            reward += -0.1
             collision = True
             #print('Collision!')
         reward+= -0.05

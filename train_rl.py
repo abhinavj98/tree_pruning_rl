@@ -126,13 +126,18 @@ def main():
                 gif = True
             else:
                 gif = False
-            depth = torch.tensor(env.depth).to(args.device).unsqueeze(0)
-            depth = (depth - 0.9)*10
+            depth = (torch.tensor(env.depth).to(args.device).unsqueeze(0)-0.9)*10
+            depth_features = ppo.get_depth_features(depth)[0]
+            state = torch.FloatTensor(state.reshape(1, -1)).to(args.device)
             memory.depth.append(depth)
-            image_features = ppo.depth_autoencoder(depth.unsqueeze(0)) #!!!!!!!!!!!!!!!!!!
-            #print(image_features[0].shape)
-            #writer.add_graph(ppo.policy, state)
-            action = ppo.select_action(image_features[0].detach(), state, memory)
+            memory.states.append(state)
+            memory.depth_features.append(depth_features)
+
+            action, action_logprob = ppo.select_action(depth_features, state)
+
+            memory.actions.append(torch.Tensor(action))
+            memory.logprobs.append(action_logprob)
+
             state, reward_tuple, done, debug_img,  _ = env.step(action, gif)
           
 
@@ -141,7 +146,7 @@ def main():
             memory.rewards.append(reward)
             memory.is_terminals.append(done)
             if gif:
-                critic_value = ppo.policy.critic(memory.image_features[-1], memory.states[-1])
+                critic_value = ppo.policy.critic(memory.depth_features[-1], memory.states[-1])
                 debug_img = cv2.putText(debug_img, "Critic: "+str(critic_value.item()), (0,50), cv2.FONT_HERSHEY_SIMPLEX, 
                     1, (255,0,0), 2, cv2.LINE_AA)
                 debug_img = cv2.putText(debug_img, "Reward: "+str(memory.rewards[-1]), (0,80), cv2.FONT_HERSHEY_SIMPLEX, 
@@ -160,7 +165,7 @@ def main():
                 time_step = 0
                 for k,v in loss_dict.items():
                     writer.add_scalar("{}/train".format(k), v, i_episode)
-                ae_image = torchvision.utils.make_grid([depth, image_features[1][0]])
+                ae_image = torchvision.utils.make_grid([depth, ppo.policy.depth_autoencoder(depth)[1]])
                 writer.add_image("train/ae", ae_image, i_episode)
             running_reward += reward
             ep_total += reward

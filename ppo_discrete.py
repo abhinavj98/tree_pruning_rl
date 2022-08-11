@@ -4,6 +4,7 @@
 # PyBullet UR-5 from https://github.com/josepdaniel/UR5Bullet
 # PPO from: https://github.com/nikhilbarhate99/PPO-PyTorch/blob/master/PPO_continuous.py
 
+from enum import auto
 from os import stat
 import torch
 import torch.nn as nn
@@ -24,15 +25,15 @@ class Memory:
         self.rewards = []
         self.is_terminals = []
         self.depth = []
-        self.image_features = []
+        self.depth_features = []
     def clear_memory(self):
         del self.actions[:]
         del self.states[:]
         del self.logprobs[:]
         del self.rewards[:]
         del self.is_terminals[:]
-        del self.image_features[:]
-        if len(self.depth) > 1000:
+        del self.depth_features[:]
+        if len(self.depth)>1000:
             del self.depth[:-1000]
 
 class AutoEncoder(nn.Module):
@@ -84,9 +85,7 @@ class Actor(nn.Module):
         self.conv = nn.Sequential(
                     nn.Conv2d(256, 128, 1, padding='same'),
                     nn.ReLU(),
-                    nn.Conv2d(128, 64, 1, padding='same'),
-                    nn.ReLU(),
-                    nn.Conv2d(64, 32, 1, padding='same'),
+                    nn.Conv2d(128, 16, 1, padding='same'),
                     nn.ReLU(),
                     )
         self.dense =  nn.Sequential(
@@ -94,15 +93,20 @@ class Actor(nn.Module):
                     nn.ReLU(),
                     nn.Linear(emb_size, emb_size),
                     nn.ReLU(),
-                    #nn.Linear(emb_size, emb_ds),
-                    #nn.ReLU(),
-                    nn.Linear(emb_size, action_dim),
+                    nn.Linear(emb_size, emb_ds),
+                    nn.ReLU(),
+                    nn.Linear(emb_ds, action_dim),
                     nn.Softmax(dim=-1) #discrete action
                     )
-    def forward(self, image, state):
-        #conv_head = self.conv(image)
-        #dense_input = torch.cat((conv_head.view(conv_head.shape[0], -1), state),1) 
-        action = self.dense(state)
+    def forward(self, image_features, state):
+        state = torch.cat((state, state, state),1)
+        conv_head = self.conv(image_features)
+        if len(image_features.shape) == 4:
+            conv_head = conv_head.view(conv_head.shape[0], -1)
+        else:
+            conv_head = conv_head.view(1, -1)
+        dense_input = torch.cat((conv_head, state),1) 
+        action = self.dense(dense_input)
         return action
 
 class Critic(nn.Module):
@@ -112,9 +116,7 @@ class Critic(nn.Module):
         self.conv = nn.Sequential(
                     nn.Conv2d(256, 128, 1, padding='same'),
                     nn.ReLU(),
-                    nn.Conv2d(128, 64, 1, padding='same'),
-                    nn.ReLU(),
-                    nn.Conv2d(64, 32, 1, padding='same'),
+                    nn.Conv2d(128, 16, 1, padding='same'),
                     nn.ReLU(),
                     )
         self.dense = nn.Sequential(
@@ -122,14 +124,20 @@ class Critic(nn.Module):
                 nn.ReLU(),
                 nn.Linear(emb_size, emb_size),
                 nn.ReLU(),
-                #nn.Linear(emb_size, emb_ds),
-                #nn.ReLU(),
-                nn.Linear(emb_size, 1)
+                nn.Linear(emb_size, emb_ds),
+                nn.ReLU(),
+                nn.Linear(emb_ds, 1)
                 )
-    def forward(self, image, state):
-        #conv_head = self.conv(image)
-        #dense_input = torch.cat((conv_head.view(conv_head.shape[0], -1), state),1) 
-        value = self.dense(state)
+    def forward(self, image_features, state):
+        state = torch.cat((state, state, state),1)
+        conv_head = self.conv(image_features)
+        if len(image_features.shape) == 4:
+            conv_head = conv_head.view(conv_head.shape[0], -1)
+        else:
+            conv_head = conv_head.view(1, -1)
+
+        dense_input = torch.cat((conv_head, state),1) 
+        value = self.dense(dense_input)
         return value
 
 
@@ -137,54 +145,34 @@ class ActorCritic(nn.Module):
     def __init__(self, device, state_dim, emb_size, action_dim, action_std):
         self.device = device
         super(ActorCritic, self).__init__()
-        self.actor = Actor(device, state_dim, emb_size, action_dim, action_std)
+          # autoencoder
+        self.depth_autoencoder = AutoEncoder().to(self.device)
+        # actor
+        self.actor = Actor(device, state_dim, emb_size, action_dim, action_std).to(self.device)
         # critic
-        self.critic = Critic(device, state_dim, emb_size, action_dim, action_std)
-        # self.action_var = torch.full((action_dim,), action_std*action_std).to(self.device)
+        self.critic = Critic(device, state_dim, emb_size, action_dim, action_std).to(self.device)
+      
+        
         # discrete action
     def forward(self):
         raise NotImplementedError
     
-    def act(self, image_features, state, memory):
-        #self.image_features = self.vgg.features(rgb.unsqueeze(0)).detach()
-        #self.image_features = torch.nn.functional.avg_pool2d(self.image_features,7)
-        #print(image_features.shape)
-        #state = torch.cat((image_features.view(-1).unsqueeze(0), state, state, state),1) 
-        #action_mean = self.actor(state)
-        #cov_mat = torch.diag(self.action_var).to(self.device)
-        # discrete action
-        # action_mean = self.actor(state)
-        # cov_mat = torch.diag(self.action_var).to(self.device)
-        #print(state.shape, image_features.view(-1).shape)
-        # distribution = MultivariateNormal(action_mean, cov_mat)
-        state = torch.cat((state, state, state),1)
-        #print(state) 
-        action_probs = self.actor(image_features, state)
+    def act(self, depth_features, state):
+        action_probs = self.actor(depth_features, state)
         distribution = Categorical(action_probs)
 
         action = distribution.sample()
         action_logprob = distribution.log_prob(action)
-        memory.image_features.append(image_features)
-        memory.states.append(state)
-        memory.actions.append(action)
-        memory.logprobs.append(action_logprob)
-        
-        return action.detach()
+        return action.detach(), action_logprob.detach()
     
-    def evaluate(self, state, image_features, action):
-        # discrete action
-        # action_mean = self.actor(state)
-        #
-        # action_var = self.action_var.expand_as(action_mean)
-        # cov_mat = torch.diag_embed(action_var).to(self.device)
-        #
-        # distribution = MultivariateNormal(action_mean, cov_mat)
-        action_probs = self.actor(image_features, state)
+    def evaluate(self, state, depth, action):
+        action_probs = self.actor(depth, state)
+
         distribution = Categorical(action_probs)
         
         action_logprobs = distribution.log_prob(action)
         distribution_entropy = distribution.entropy()
-        state_value = self.critic(image_features, state)
+        state_value = self.critic(depth, state)
         
         return action_logprobs, torch.squeeze(state_value), distribution_entropy
 
@@ -196,7 +184,7 @@ class PPO:
         self.env = env
         self.device = self.args.device
 
-        self.state_dim = self.env.observation_space.shape[0]*3 #+ 7*7*32  #!!!Get this right
+        self.state_dim = self.env.observation_space.shape[0]*3 + 7*7*16  #!!!Get this right
         #print('--------------------------------')
         #print(self.env.action_space.shape)
         #self.action_dim = self.env.action_space.shape[0]
@@ -209,14 +197,19 @@ class PPO:
         
         self.policy_old = ActorCritic(self.device, self.state_dim, self.args.emb_size, self.action_dim, self.args.action_std).to(self.device)
         self.policy_old.load_state_dict(self.policy.state_dict())
-        self.depth_autoencoder = AutoEncoder().to(self.device)
-        self.autoencoder_optimizer = torch.optim.Adam(self.depth_autoencoder.parameters(), lr=self.args.lr, betas=self.args.betas)
+        #self.autoencoder_optimizer = torch.optim.Adam(self.policy.depth_autoencoder.parameters(), lr=self.args.lr, betas=self.args.betas)
         self.MseLoss = nn.MSELoss()
+        self.train_ae = True
     
-    def select_action(self, depth, state, memory):
+    def select_action(self, depth_features, state):
         state = torch.FloatTensor(state.reshape(1, -1)).to(self.device)
         #image_features_avg_pooled = torch.nn.functional.avg_pool2d(depth,7)
-        return self.policy_old.act(depth, state, memory).cpu().data.numpy().flatten()
+        action = self.policy_old.act(depth_features, state)
+        return action[0].cpu().data.numpy().flatten(), action[1]
+
+    def get_depth_features(self, img):
+        return self.policy.depth_autoencoder(img)
+
     
     def update(self, memory):
         # Monte Carlo estimate of rewards:
@@ -237,7 +230,7 @@ class PPO:
         old_states = torch.squeeze(torch.stack(memory.states).to(self.device), 1).detach()
         old_actions = torch.squeeze(torch.stack(memory.actions).to(self.device), 1).detach()
         old_logprobs = torch.squeeze(torch.stack(memory.logprobs), 1).to(self.device).detach()
-        old_image_features = torch.squeeze(torch.stack(memory.image_features), 1).to(self.device).detach()
+        old_depth = torch.squeeze(torch.stack(memory.depth_features), 0).to(self.device).detach()
         
          #Plotting
         plot_dict = {}
@@ -251,7 +244,7 @@ class PPO:
         for _ in range(self.args.K_epochs):
            
             # Evaluating old actions and values :
-            logprobs, state_values, distribution_entropy = self.policy.evaluate(old_states, old_image_features, old_actions)
+            logprobs, state_values, distribution_entropy = self.policy.evaluate(old_states, old_depth, old_actions)
             
             # Finding the ratio (pi_theta / pi_theta__old):
             ratios = torch.exp(logprobs - old_logprobs.detach())
@@ -278,7 +271,7 @@ class PPO:
         # Copy new weights into old policy:
         self.policy_old.load_state_dict(self.policy.state_dict())
         #print(memory.depth)
-        if False:
+        if self.train_ae:
             depth_ds = torch.stack(memory.depth, 0).to(self.device).detach()
             #recon_out = torch.squeeze(torch.stack(memory.rgbd_recon).to(self.device), 1)
 
@@ -288,11 +281,11 @@ class PPO:
             ae_loss = 0
             
             for depth_data in ae_dataloader:
-                _, recon = self.depth_autoencoder(depth_data[0])
+                _, recon = self.policy.depth_autoencoder(depth_data[0])
                 ae_loss = self.MseLoss(recon, depth_data[1])
                 total_loss += ae_loss.data
-                self.autoencoder_optimizer.zero_grad()
+                self.optimizer.zero_grad()
                 ae_loss.backward()
-                self.autoencoder_optimizer.step()
+                self.optimizer.step()
             plot_dict['ae_loss']=total_loss
         return plot_dict
