@@ -197,7 +197,7 @@ class PPO:
         
         self.policy_old = ActorCritic(self.device, self.state_dim, self.args.emb_size, self.action_dim, self.args.action_std).to(self.device)
         self.policy_old.load_state_dict(self.policy.state_dict())
-        #self.autoencoder_optimizer = torch.optim.Adam(self.policy.depth_autoencoder.parameters(), lr=self.args.lr, betas=self.args.betas)
+        self.autoencoder_optimizer = torch.optim.Adam(self.policy.depth_autoencoder.parameters(), lr=self.args.lr, betas=self.args.betas)
         self.MseLoss = nn.MSELoss()
         self.train_ae = True
     
@@ -269,7 +269,6 @@ class PPO:
             self.optimizer.step()
             
         # Copy new weights into old policy:
-        self.policy_old.load_state_dict(self.policy.state_dict())
         #print(memory.depth)
         if self.train_ae:
             depth_ds = torch.stack(memory.depth, 0).to(self.device).detach()
@@ -284,8 +283,11 @@ class PPO:
                 _, recon = self.policy.depth_autoencoder(depth_data[0])
                 ae_loss = self.MseLoss(recon, depth_data[1])
                 total_loss += ae_loss.data
-                self.optimizer.zero_grad()
+                self.autoencoder_optimizer.zero_grad()
                 ae_loss.backward()
-                self.optimizer.step()
+                self.autoencoder_optimizer.step()
             plot_dict['ae_loss']=total_loss
+        
+	
+        self.policy_old.load_state_dict(self.policy.state_dict())
         return plot_dict
