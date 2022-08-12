@@ -130,8 +130,8 @@ class ur5GymEnv(gym.Env):
         self.name = 'ur5GymEnv'
         self.simulatedGripper = simulatedGripper
         # discrete action
-        self.action_dim = 6
-        #self.action_dim = 12
+        #self.action_dim = 6
+        self.action_dim = 12
         self.stepCounter = 0
         self.maxSteps = maxSteps
         self.terminated = False
@@ -145,19 +145,19 @@ class ur5GymEnv(gym.Env):
         # self._action_bound = 1.0 # delta limits
         # action_high = np.array([self._action_bound] * self.action_dim)
         # self.action_space = spaces.Box(-action_high, action_high, dtype='float32')
-        self.action_space = spaces.Discrete(6)
-        self.actions = {'-x':1,
-                        '+x':2,
-                        '-y' : 3,
-                        '+y' : 4,
+        self.action_space = spaces.Discrete(12)
+        self.actions = {'+x':1,
+                        '-x':2,
+                        '+y' : 3,
+                        '-y' : 4,
                         '+z' : 5,
                         '-z' : 6,
-                        'roll_up' : 7,
-                        'roll_down': 8,
-                        'pitch_up' : 9,
-                        'pitch_down' : 10,
-                        'yaw_up' : 11,
-                        'yaw_down' : 12}
+                        'roll_+x' : 7,
+                        'roll_-x': 8,
+                        'pitch_+y' : 9,
+                        'pitch_-y' : 10,
+                        'yaw_+z' : 11,
+                        'yaw_-z' : 12}
 
         self.rev_actions = {v: k for k,v in self.actions.items()}
 
@@ -350,22 +350,22 @@ class ur5GymEnv(gym.Env):
         if action == self.actions['-z']:
             deltaPose = [0, 0, -step_size]
 
-        if action == self.actions['roll_up']:
+        if action == self.actions['roll_+x']:
             deltaOrient= [ step_size / angle_scale, 0, 0]
 
-        if action == self.actions['roll_down']:
+        if action == self.actions['roll_-x']:
             deltaOrient= [ -step_size / angle_scale, 0, 0]
 
-        if action == self.actions['pitch_up']:
+        if action == self.actions['pitch_+y']:
             deltaOrient= [0, step_size / angle_scale, 0]
 
-        if action == self.actions['pitch_down']:
+        if action == self.actions['pitch_-y']:
             deltaOrient= [0, -step_size / angle_scale, 0]
 
-        if action == self.actions['yaw_up']:
+        if action == self.actions['yaw_+z']:
             deltaOrient= [0, 0, step_size / angle_scale]
 
-        if action == self.actions['yaw_down']:
+        if action == self.actions['yaw_-z']:
             deltaOrient= [0, 0, -step_size / angle_scale]
         # action = np.array(action)
         # arm_action = action[0:self.action_dim-1].astype(float) # dX, dY, dZ - range: [-1,1]
