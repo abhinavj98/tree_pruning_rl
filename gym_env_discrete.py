@@ -130,8 +130,8 @@ class ur5GymEnv(gym.Env):
         self.name = 'ur5GymEnv'
         self.simulatedGripper = simulatedGripper
         # discrete action
-        #self.action_dim = 6
-        self.action_dim = 12
+        self.action_dim = 6
+        #self.action_dim = 12
         self.stepCounter = 0
         self.maxSteps = maxSteps
         self.terminated = False
@@ -145,7 +145,7 @@ class ur5GymEnv(gym.Env):
         # self._action_bound = 1.0 # delta limits
         # action_high = np.array([self._action_bound] * self.action_dim)
         # self.action_space = spaces.Box(-action_high, action_high, dtype='float32')
-        self.action_space = spaces.Discrete(12)
+        self.action_space = spaces.Discrete(self.action_dim)
         self.actions = {'+x':1,
                         '-x':2,
                         '+y' : 3,
