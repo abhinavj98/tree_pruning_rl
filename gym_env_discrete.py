@@ -329,7 +329,7 @@ class ur5GymEnv(gym.Env):
         #discrete action
         deltaPose = np.array([0, 0, 0])
         deltaOrient= np.array([0, 0, 0])
-        angle_scale = 1
+        angle_scale = 2
         step_size =  0.05
 
         if action == self.actions['+x']:

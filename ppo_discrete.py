@@ -166,7 +166,8 @@ class ActorCritic(nn.Module):
         return action.detach(), action_logprob.detach()
     
     def evaluate(self, state, depth, action):
-        action_probs = self.actor(depth, state)
+        depth_features = self.depth_autoencoder(depth)
+        action_probs = self.actor(depth_features[0], state)
 
         distribution = Categorical(action_probs)
         
@@ -174,7 +175,7 @@ class ActorCritic(nn.Module):
         distribution_entropy = distribution.entropy()
         state_value = self.critic(depth, state)
         
-        return action_logprobs, torch.squeeze(state_value), distribution_entropy
+        return action_logprobs, torch.squeeze(state_value), distribution_entropy, depth_features
 
 
 
@@ -244,7 +245,7 @@ class PPO:
         for _ in range(self.args.K_epochs):
            
             # Evaluating old actions and values :
-            logprobs, state_values, distribution_entropy = self.policy.evaluate(old_states, old_depth, old_actions)
+            logprobs, state_values, distribution_entropy, autoencoder_io = self.policy.evaluate(old_states, old_depth, old_actions)
             
             # Finding the ratio (pi_theta / pi_theta__old):
             ratios = torch.exp(logprobs - old_logprobs.detach())
