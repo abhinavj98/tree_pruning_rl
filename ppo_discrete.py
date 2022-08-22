@@ -33,8 +33,7 @@ class Memory:
         del self.rewards[:]
         del self.is_terminals[:]
         del self.depth_features[:]
-        if len(self.depth)>1000:
-            del self.depth[:-1000]
+        del self.depth[:]
 
 class AutoEncoder(nn.Module):
     def __init__(self):
@@ -70,7 +69,7 @@ class AutoEncoder(nn.Module):
             nn.ConvTranspose2d(64, 32, 3, stride=2, output_padding=1, padding=1),  # b, 32, 224, 224
             nn.ReLU(),
             nn.Conv2d(32, 1, 3, padding = 'same'),  # b, 1, 224, 224
-            nn.Sigmoid()
+            nn.ReLU()
         )
 
     def forward(self, x):
@@ -99,13 +98,13 @@ class Actor(nn.Module):
                     nn.Softmax(dim=-1) #discrete action
                     )
     def forward(self, image_features, state):
-        state = torch.cat((state, state, state),1)
+        state = torch.cat((state, state, state),-1)
         conv_head = self.conv(image_features)
         if len(image_features.shape) == 4:
             conv_head = conv_head.view(conv_head.shape[0], -1)
         else:
             conv_head = conv_head.view(1, -1)
-        dense_input = torch.cat((conv_head, state),1) 
+        dense_input = torch.cat((conv_head, state),-1) 
         action = self.dense(dense_input)
         return action
 
@@ -129,7 +128,7 @@ class Critic(nn.Module):
                 nn.Linear(emb_ds, 1)
                 )
     def forward(self, image_features, state):
-        state = torch.cat((state, state, state),1)
+        state = torch.cat((state, state, state),-1)
         conv_head = self.conv(image_features)
         if len(image_features.shape) == 4:
             conv_head = conv_head.view(conv_head.shape[0], -1)
@@ -173,7 +172,7 @@ class ActorCritic(nn.Module):
         
         action_logprobs = distribution.log_prob(action)
         distribution_entropy = distribution.entropy()
-        state_value = self.critic(depth, state)
+        state_value = self.critic(depth_features[0], state)
         
         return action_logprobs, torch.squeeze(state_value), distribution_entropy, depth_features
 
@@ -231,8 +230,9 @@ class PPO:
         old_states = torch.squeeze(torch.stack(memory.states).to(self.device), 1).detach()
         old_actions = torch.squeeze(torch.stack(memory.actions).to(self.device), 1).detach()
         old_logprobs = torch.squeeze(torch.stack(memory.logprobs), 1).to(self.device).detach()
-        old_depth = torch.squeeze(torch.stack(memory.depth_features), 0).to(self.device).detach()
-        
+        old_depth = torch.squeeze(torch.stack(memory.depth), 0).to(self.device).detach()
+        train_ds = TensorDataset(old_states, old_actions, old_logprobs, old_depth, rewards)
+        train_dataloader = DataLoader(train_ds, batch_size=32, shuffle=True)
          #Plotting
         plot_dict = {}
         plot_dict['surr2'] =  0
@@ -243,52 +243,35 @@ class PPO:
         plot_dict['ae_loss'] =  0
         # Optimize policy for K epochs:
         for _ in range(self.args.K_epochs):
-           
-            # Evaluating old actions and values :
-            logprobs, state_values, distribution_entropy, autoencoder_io = self.policy.evaluate(old_states, old_depth, old_actions)
-            
-            # Finding the ratio (pi_theta / pi_theta__old):
-            ratios = torch.exp(logprobs - old_logprobs.detach())
+            for old_states_batch, old_actions_batch, old_logprobs_batch, old_depth_batch, old_rewards in train_dataloader:
 
-            # Finding Surrogate Loss:
-            advantages = rewards - state_values.detach()   
-            surr1 = ratios * advantages
-            surr2 = torch.clamp(ratios, 1-self.args.eps_clip, 1+self.args.eps_clip) * advantages
-            loss = -torch.min(surr1, surr2) + \
-                    + self.args.loss_value_c*self.MseLoss(state_values, rewards) + \
-                    - self.args.loss_entropy_c*distribution_entropy
-            #Make plotting
-            plot_dict['surr1']-=surr1.mean()/self.args.K_epochs
-            plot_dict['surr2']-=surr2.mean()/self.args.K_epochs
-            plot_dict['critic_loss']+=self.args.loss_value_c*self.MseLoss(state_values, rewards).mean()/self.args.K_epochs
-            plot_dict['actor_loss']+=(-torch.min(surr1, surr2) - self.args.loss_entropy_c*distribution_entropy).mean()/self.args.K_epochs
-            plot_dict['total_loss']+=loss.mean()/self.args.K_epochs
-            
-            # take gradient step
-            self.optimizer.zero_grad()
-            loss.mean().backward()
-            self.optimizer.step()
+                # Evaluating old actions and values :
+                #print(old_states_batch.shape)
+
+                logprobs, state_values, distribution_entropy, autoencoder_io = self.policy.evaluate(old_states_batch, old_depth_batch, old_actions_batch)
+                # Finding the ratio (pi_theta / pi_theta__old):
+                ratios = torch.exp(logprobs - old_logprobs_batch.detach())
+                # Finding Surrogate Loss:
+                advantages = old_rewards - state_values.detach()
+                ae_loss = 0.5*self.MseLoss(old_depth_batch, autoencoder_io[1])   
+                surr1 = ratios * advantages
+                surr2 = torch.clamp(ratios, 1-self.args.eps_clip, 1+self.args.eps_clip) * advantages
+                loss = -torch.min(surr1, surr2) + \
+                        + self.args.loss_value_c*self.MseLoss(state_values, rewards) + \
+                        - self.args.loss_entropy_c*distribution_entropy + ae_loss
+                #Make plotting
+                plot_dict['surr1']-=surr1.mean()/self.args.K_epochs
+                plot_dict['surr2']-=surr2.mean()/self.args.K_epochs
+                plot_dict['critic_loss']+=self.args.loss_value_c*self.MseLoss(state_values, rewards).mean()/self.args.K_epochs
+                plot_dict['actor_loss']+=(-torch.min(surr1, surr2) - self.args.loss_entropy_c*distribution_entropy).mean()/self.args.K_epochs
+                plot_dict['total_loss']+=loss.mean()/self.args.K_epochs
+                plot_dict['ae_loss']+=ae_loss.mean()/self.args.K_epochs
+                
+                # take gradient step
+                self.optimizer.zero_grad()
+                loss.mean().backward()
+                self.optimizer.step()
             
         # Copy new weights into old policy:
-        #print(memory.depth)
-        if self.train_ae:
-            depth_ds = torch.stack(memory.depth, 0).to(self.device).detach()
-            #recon_out = torch.squeeze(torch.stack(memory.rgbd_recon).to(self.device), 1)
-
-            ae_dataset = TensorDataset(depth_ds, depth_ds) # create your datset
-            ae_dataloader = DataLoader(ae_dataset, batch_size=32, shuffle=True) # create your dataloader
-            total_loss = 0
-            ae_loss = 0
-            
-            for depth_data in ae_dataloader:
-                _, recon = self.policy.depth_autoencoder(depth_data[0])
-                ae_loss = self.MseLoss(recon, depth_data[1])
-                total_loss += ae_loss.data
-                self.autoencoder_optimizer.zero_grad()
-                ae_loss.backward()
-                self.autoencoder_optimizer.step()
-            plot_dict['ae_loss']=total_loss
-        
-	
         self.policy_old.load_state_dict(self.policy.state_dict())
         return plot_dict

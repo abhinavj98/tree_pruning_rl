@@ -126,7 +126,7 @@ def main():
                 gif = True
             else:
                 gif = False
-            depth = (torch.tensor(env.depth).to(args.device).unsqueeze(0)-0.9)*10
+            depth = (torch.tensor(env.depth).to(args.device).unsqueeze(0))
             depth_features = ppo.get_depth_features(depth.unsqueeze(0))[0]
             state = torch.FloatTensor(state.reshape(1, -1)).to(args.device)
             memory.depth.append(depth)

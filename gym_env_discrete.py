@@ -74,7 +74,7 @@ class ur5GymEnv(gym.Env):
                  maxSteps=100,
                  # numControlledJoints=3, # XYZ, we use IK here!
                  simulatedGripper=False,
-                 randObjPos=True,
+                 randObjPos=False,
                  task=0, # here target number
                  learning_param=0,
                  width = 424,
@@ -107,6 +107,8 @@ class ur5GymEnv(gym.Env):
         self.proj_mat = pybullet.computeProjectionMatrixFOV(
             fov=42, aspect = width / height, nearVal=0.01,
             farVal=10.0)
+        self.near_val = 0.01
+        self.far_val = 10
         self.joints = dict()
         for i in range(self.num_joints):
             info = pybullet.getJointInfo(self.ur5, i)
@@ -125,7 +127,7 @@ class ur5GymEnv(gym.Env):
             self.joints[info.name] = info
 
         # object:
-        self.initial_obj_pos = [0.8, 0.1, 0.0] # initial object pos
+        self.initial_obj_pos = [1, 0, 0] # initial object pos
 
         self.name = 'ur5GymEnv'
         self.simulatedGripper = simulatedGripper
@@ -286,6 +288,10 @@ class ur5GymEnv(gym.Env):
         rgb = rgbd[2][:,:,0:3].reshape(3,h,w)/255
         depth = rgbd[3]
         return rgb, depth
+    @staticmethod
+    def linearize_depth(depth, far_val, near_val):
+        depth_linearized = far_val * near_val / (far_val - (far_val -near_val) * depth)//depth
+        return depth_linearized
 
     def reset(self):
         self.stepCounter = 0
@@ -293,7 +299,8 @@ class ur5GymEnv(gym.Env):
         self.ur5_or = [0.0, 1/2*math.pi, 0.0]
         cur_p = self.get_current_pose()
         rgbd = self.set_camera(cur_p[0], cur_p[1])
-        self.rgb,  self.depth = self.seperate_rgbd_rgb_d(rgbd)
+        self.rgb,  depth = self.seperate_rgbd_rgb_d(rgbd)
+        self.depth = self.linearize_depth(depth, self.far_val, self.near_val)
         # pybullet.addUserDebugText('X', self.obj_pos, [0,1,0], 1) # display goal
         if self.randObjPos:
             self.initial_obj_pos = random.sample(self.tree_target,1)[0]
