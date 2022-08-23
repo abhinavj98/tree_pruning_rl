@@ -132,8 +132,8 @@ class ur5GymEnv(gym.Env):
         self.name = 'ur5GymEnv'
         self.simulatedGripper = simulatedGripper
         # discrete action
-        self.action_dim = 6
-        #self.action_dim = 12
+        #self.action_dim = 6
+        self.action_dim = 12
         self.stepCounter = 0
         self.maxSteps = maxSteps
         self.terminated = False

@@ -241,6 +241,7 @@ class PPO:
         plot_dict['actor_loss'] =  0
         plot_dict['total_loss'] =  0
         plot_dict['ae_loss'] =  0
+        plot_dict['entropy_loss'] = 0
         # Optimize policy for K epochs:
         for _ in range(self.args.K_epochs):
             for old_states_batch, old_actions_batch, old_logprobs_batch, old_depth_batch, old_rewards in train_dataloader:
@@ -253,23 +254,28 @@ class PPO:
                 ratios = torch.exp(logprobs - old_logprobs_batch.detach())
                 # Finding Surrogate Loss:
                 advantages = old_rewards - state_values.detach()
-                ae_loss = 0.5*self.MseLoss(old_depth_batch, autoencoder_io[1])   
+                ae_loss = 0.5*self.MseLoss(old_depth_batch, autoencoder_io[1]) 
+                critic_loss = self.args.loss_value_c*self.MseLoss(state_values, old_rewards)
+                entropy_loss = self.args.loss_entropy_c*distribution_entropy  
                 surr1 = ratios * advantages
                 surr2 = torch.clamp(ratios, 1-self.args.eps_clip, 1+self.args.eps_clip) * advantages
                 loss = -torch.min(surr1, surr2) + \
-                        + self.args.loss_value_c*self.MseLoss(state_values, rewards) + \
-                        - self.args.loss_entropy_c*distribution_entropy + ae_loss
+                        + critic_loss + \
+                        - entropy_loss +\
+                        +  ae_loss
                 #Make plotting
                 plot_dict['surr1']-=surr1.mean()/self.args.K_epochs
                 plot_dict['surr2']-=surr2.mean()/self.args.K_epochs
-                plot_dict['critic_loss']+=self.args.loss_value_c*self.MseLoss(state_values, rewards).mean()/self.args.K_epochs
-                plot_dict['actor_loss']+=(-torch.min(surr1, surr2) - self.args.loss_entropy_c*distribution_entropy).mean()/self.args.K_epochs
+                plot_dict['critic_loss']+=critic_loss.mean()/self.args.K_epochs
+                plot_dict['actor_loss']+=-torch.min(surr1, surr2).mean()/self.args.K_epochs
+                plot_dict['entropy_loss']+=-entropy_loss.mean()/self.args.K_epochs
                 plot_dict['total_loss']+=loss.mean()/self.args.K_epochs
                 plot_dict['ae_loss']+=ae_loss.mean()/self.args.K_epochs
                 
                 # take gradient step
                 self.optimizer.zero_grad()
                 loss.mean().backward()
+                nn.utils.clip_grad_norm_(self.policy.parameters(), 1)
                 self.optimizer.step()
             
         # Copy new weights into old policy:
