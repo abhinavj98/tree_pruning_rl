@@ -225,10 +225,10 @@ class ur5GymEnv(gym.Env):
 
 
     def check_collisions(self):
-        collisions = pybullet.getContactPoints(bodyA = self.ur5, bodyB = self.tree, linkIndexA=6)
+        collisions = pybullet.getContactPoints(bodyA = self.ur5, bodyB = self.tree, linkIndexA=self.end_effector_index)
         # print(collisions)
         for i in range(len(collisions)):
-            if collisions[i][-6] < -0.001 :
+            if collisions[i][-6] < 0 :
                 #print("[Collision detected!] {}, {}".format(datetime.now(), collisions[i]))
                 return True
         return False
@@ -244,13 +244,12 @@ class ur5GymEnv(gym.Env):
         upper_limits = [math.pi]*6
         joint_ranges = [2*math.pi]*6
         # rest_poses = [0, -math.pi/2, -math.pi/2, -math.pi/2, -math.pi/2, 0]
-        rest_poses = [(3.14,-1.57,1.80,0,0,0)]#[(-0.34, -1.57, 1.80, -1.57, -1.57, 0.00)] # rest pose of our ur5 robot
+        #rest_poses = [(3.14,-1.57,1.80,0,0,0)]#[(-0.34, -1.57, 1.80, -1.57, -1.57, 0.00)] # rest pose of our ur5 robot
 
         joint_angles = pybullet.calculateInverseKinematics(
             self.ur5, self.end_effector_index, position, quaternion,
-            jointDamping=[0.01]*6, upperLimits=upper_limits,
-            lowerLimits=lower_limits, jointRanges=joint_ranges,
-            restPoses=rest_poses
+            jointDamping=[0.001, 0.002, 0.004, 0.008, 0.016, 0.032], upperLimits=upper_limits,
+            lowerLimits=lower_limits, jointRanges=joint_ranges, maxNumIterations = 100
         )
         return joint_angles
 
@@ -290,7 +289,7 @@ class ur5GymEnv(gym.Env):
         return rgb, depth
     @staticmethod
     def linearize_depth(depth, far_val, near_val):
-        depth_linearized = far_val * near_val / (far_val - (far_val -near_val) * depth)//depth
+        depth_linearized = near_val / (far_val - (far_val -near_val) * depth)/depth
         return depth_linearized
 
     def reset(self):
@@ -300,6 +299,7 @@ class ur5GymEnv(gym.Env):
         cur_p = self.get_current_pose()
         rgbd = self.set_camera(cur_p[0], cur_p[1])
         self.rgb,  depth = self.seperate_rgbd_rgb_d(rgbd)
+        depth = depth.astype('float32')
         self.depth = self.linearize_depth(depth, self.far_val, self.near_val)
         # pybullet.addUserDebugText('X', self.obj_pos, [0,1,0], 1) # display goal
         if self.randObjPos:
@@ -324,7 +324,7 @@ class ur5GymEnv(gym.Env):
         self.set_joint_angles(joint_angles)
 
         # step simualator:
-        for i in range(100):
+        for i in range(1000):
             pybullet.stepSimulation()
 
         # get obs and return:
@@ -337,7 +337,7 @@ class ur5GymEnv(gym.Env):
         deltaPose = np.array([0, 0, 0])
         deltaOrient= np.array([0, 0, 0])
         angle_scale = 2
-        step_size =  0.05
+        step_size =  0.1
 
         if action == self.actions['+x']:
             deltaPose = [step_size, 0, 0,]
@@ -392,7 +392,9 @@ class ur5GymEnv(gym.Env):
         self.set_joint_angles(joint_angles)
         cur_p = self.get_current_pose()
         rgbd = self.set_camera(cur_p[0], cur_p[1])
-        self.rgb,  self.depth = self.seperate_rgbd_rgb_d(rgbd)
+        self.rgb,  depth = self.seperate_rgbd_rgb_d(rgbd)
+        depth = depth.astype('float32')
+        self.depth = self.linearize_depth(depth, self.far_val, self.near_val)
         
         # step simualator:
         for i in range(self.actionRepeat):
