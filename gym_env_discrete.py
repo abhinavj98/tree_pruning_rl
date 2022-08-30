@@ -164,7 +164,7 @@ class ur5GymEnv(gym.Env):
         self.rev_actions = {v: k for k,v in self.actions.items()}
 
         self.tree = pybullet.loadURDF(TREE_URDF_PATH, [2.3, 0.0, 0.0], [0, 0, 0, 1], globalScaling=1)
-        self.scene = pywavefront.Wavefront('project_tree.obj', collect_faces=True)
+        self.scene = pywavefront.Wavefront('tree.obj', collect_faces=True)
         self.tree_reachble = []
         self.tree_target=self.getTreePoints(len(self.scene.vertices))
         print(self.tree_target)
@@ -249,14 +249,14 @@ class ur5GymEnv(gym.Env):
         joint_angles = pybullet.calculateInverseKinematics(
             self.ur5, self.end_effector_index, position, quaternion,
             jointDamping=[0.001, 0.002, 0.004, 0.008, 0.016, 0.032], upperLimits=upper_limits,
-            lowerLimits=lower_limits, jointRanges=joint_ranges, maxNumIterations = 100
+            lowerLimits=lower_limits, jointRanges=joint_ranges
         )
         return joint_angles
 
 
     def get_current_pose(self):
         linkstate = pybullet.getLinkState(self.ur5, self.end_effector_index, computeForwardKinematics=True)
-        position, orientation = linkstate[0], linkstate[1]
+        position, orientation = linkstate[4], linkstate[5]
         return (position, orientation)
 
     def set_camera(self, pose, orientation):
@@ -305,19 +305,9 @@ class ur5GymEnv(gym.Env):
         if self.randObjPos:
             self.initial_obj_pos = random.sample(self.tree_target,1)[0]
         pybullet.removeBody(self.sphereUid)
-        colSphereId = pybullet.createCollisionShape(pybullet.GEOM_SPHERE, radius=.0002)
+        colSphereId = -1    #pybullet.createCollisionShape(pybullet.GEOM_SPHERE, radius=.0002)
         visualShapeId = pybullet.createVisualShape(pybullet.GEOM_SPHERE, radius=.02,rgbaColor =[1,0,0,1])
         self.sphereUid = pybullet.createMultiBody(0.0, colSphereId, visualShapeId, [self.initial_obj_pos[0],self.initial_obj_pos[1],self.initial_obj_pos[2]], [0,0,0,1])
-        #print(self.initial_obj_pos)
-        #print(self.tree_target)
-        #pybullet.resetBasePositionAndOrientation(self.obj, self.tree_target[1], [0.,0.,0.,1.0]) # reset object pos
-        #pybullet.resetBasePositionAndOrientation(self.obj, self.initial_obj_pos, [0.,0.,0.,1.0]) # reset object pos
-        #colSphereId = pybullet.createCollisionShape(pybullet.GEOM_SPHERE, radius=.005*3)
-        #visualShapeId = pybullet.createVisualShape(pybullet.GEOM_SPHERE, radius=.005*3, rgbaColor=[1, 0, 0, 1])
-        #sphereUid = pybullet.createMultiBody(0.0, colSphereId, visualShapeId, [self.initial_obj_pos[0], self.initial_obj_pos[1], self.initial_obj_pos[2]], [0, 0, 0, 1])
-
-        # reset robot simulation and position:
-        # joint_angles = (-0.34, -1.57, 1.80, -1.57, -1.57, 0.00) # pi/2 = 1.5707
         joint_angles = (0, -1.57,1.80,-3.14,-1.57, -1.57)
         #joint_angles = (1.57,-1.57,1.80,-3.14,3.14,0)
         
@@ -336,8 +326,8 @@ class ur5GymEnv(gym.Env):
         #discrete action
         deltaPose = np.array([0, 0, 0])
         deltaOrient= np.array([0, 0, 0])
-        angle_scale = 2
-        step_size =  0.1
+        angle_scale = 0.05
+        step_size =  0.05
 
         if action == self.actions['+x']:
             deltaPose = [step_size, 0, 0,]
@@ -374,18 +364,15 @@ class ur5GymEnv(gym.Env):
 
         if action == self.actions['yaw_-z']:
             deltaOrient= [0, 0, -step_size / angle_scale]
-        # action = np.array(action)
-        # arm_action = action[0:self.action_dim-1].astype(float) # dX, dY, dZ - range: [-1,1]
-        # gripper_action = action[self.action_dim-1].astype(float) # gripper - range: [-1=closed,1=open]
-
+    
         # get current position:
         cur_p = self.get_current_pose()
         self.previous_pose = cur_p
         # add delta position:
-        # new_p = np.array(cur_p[0]) + arm_action
+        
         new_position = np.array(cur_p[0]) + deltaPose
         new_orientation=np.array(cur_p[1]) + pybullet.getQuaternionFromEuler(deltaOrient)
-        #new_orientation = self.ur5_or #iashdiuhs
+       
         # actuate:
 
         joint_angles = self.calculate_ik(new_position, new_orientation) # XYZ and angles set to zero

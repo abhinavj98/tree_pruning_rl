@@ -158,7 +158,12 @@ def main():
                 debug_img = cv2.putText(debug_img, "Goal: "+str(env.desired_goal), (0,170), cv2.FONT_HERSHEY_SIMPLEX, 
                     1, (255,0,0), 2, cv2.LINE_AA)
                 ep_gif.append(torch.tensor(debug_img))
+
             # learning: 
+            if i_episode == 1:
+                memory.clear_memory()
+                continue
+            
             if time_step % args.update_timestep == 0:
                 loss_dict = ppo.update(memory)
                 memory.clear_memory()
