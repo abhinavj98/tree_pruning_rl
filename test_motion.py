@@ -90,7 +90,7 @@ env.reset()
 print(env.actions)
 while True:
     keys = pybullet.getKeyboardEvents()
-    for k in keys:
+    for k,state in keys.items():
         if ord('-') == k:
             action = 11
         elif ord('=') == k:
@@ -102,8 +102,10 @@ while True:
         if action > 12 or action < 0:
             print("Bad action")
             continue
-        print(env.rev_actions[action])
-        r = env.step(action, False)
+        if state&pybullet.KEY_WAS_TRIGGERED:
+            print(env.rev_actions[action])
+            r = env.step(action, False)
+        
         
 """
 print("Initial position: ", env.achieved_goal, pybullet.getEulerFromQuaternion(env.achieved_orient))

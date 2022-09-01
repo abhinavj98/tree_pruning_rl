@@ -89,7 +89,7 @@ class ur5GymEnv(gym.Env):
         else:
             pybullet.connect(pybullet.DIRECT)
 
-        pybullet.setTimeStep(1./240.)
+        pybullet.setTimeStep(5./240.)
         pybullet.setGravity(0,0,0)
         pybullet.setRealTimeSimulation(False)
         # pybullet.configureDebugVisualizer(pybullet.COV_ENABLE_WIREFRAME,1)
@@ -132,8 +132,8 @@ class ur5GymEnv(gym.Env):
         self.name = 'ur5GymEnv'
         self.simulatedGripper = simulatedGripper
         # discrete action
-        #self.action_dim = 6
-        self.action_dim = 12
+        self.action_dim = 6
+        #self.action_dim = 12
         self.stepCounter = 0
         self.maxSteps = maxSteps
         self.terminated = False
@@ -164,7 +164,7 @@ class ur5GymEnv(gym.Env):
         self.rev_actions = {v: k for k,v in self.actions.items()}
 
         self.tree = pybullet.loadURDF(TREE_URDF_PATH, [2.3, 0.0, 0.0], [0, 0, 0, 1], globalScaling=1)
-        self.scene = pywavefront.Wavefront('tree.obj', collect_faces=True)
+        self.scene = pywavefront.Wavefront('project_tree.obj', collect_faces=True)
         self.tree_reachble = []
         self.tree_target=self.getTreePoints(len(self.scene.vertices))
         print(self.tree_target)
@@ -237,7 +237,7 @@ class ur5GymEnv(gym.Env):
     def calculate_ik(self, position, orientation):
         #discrete actions
         #quaternion = pybullet.getQuaternionFromEuler(orientation)
-        quaternion = orientation
+       
 
         # quaternion = (0,1,0,1)
         lower_limits = [-math.pi]*6
@@ -247,8 +247,8 @@ class ur5GymEnv(gym.Env):
         #rest_poses = [(3.14,-1.57,1.80,0,0,0)]#[(-0.34, -1.57, 1.80, -1.57, -1.57, 0.00)] # rest pose of our ur5 robot
 
         joint_angles = pybullet.calculateInverseKinematics(
-            self.ur5, self.end_effector_index, position, quaternion,
-            jointDamping=[0.001, 0.002, 0.004, 0.008, 0.016, 0.032], upperLimits=upper_limits,
+            self.ur5, self.end_effector_index, position, orientation,
+            jointDamping=[0.01]*6, upperLimits=upper_limits,
             lowerLimits=lower_limits, jointRanges=joint_ranges
         )
         return joint_angles
@@ -265,7 +265,7 @@ class ur5GymEnv(gym.Env):
         rot_mat = np.array(pybullet.getMatrixFromQuaternion(orientation)).reshape(3,3)
 		#upVector = [0,0,1]
         #Initial vectors
-        init_camera_vector = np.array([1,0, 0])#
+        init_camera_vector = np.array([1, 0, 0])#
         init_up_vector = np.array([0, 0,1]) #
         #Rotated vectors
         camera_vector = rot_mat.dot(init_camera_vector)
@@ -273,15 +273,7 @@ class ur5GymEnv(gym.Env):
         view_matrix = pybullet.computeViewMatrix(pose, pose + 0.1 * camera_vector, up_vector)
        
         return pybullet.getCameraImage(224, 224, viewMatrix = view_matrix, projectionMatrix = self.proj_mat, renderer = pybullet.ER_BULLET_HARDWARE_OPENGL)
-        camMat = pybullet.getMatrixFromQuaternion(orientation)
-        forwardVec = [camMat[0],camMat[3],camMat[6]]
-		#sideVec =  [camMat[1],camMat[4],camMat[7]]
-        camUpVec =  [camMat[2],camMat[5],camMat[8]]
-        camTarget = [pose[0]+forwardVec[0]*10,pose[1]+forwardVec[1]*10,pose[2]+forwardVec[2]*10]
-        camUpTarget = [pose[0]+camUpVec[0],pose[1]+camUpVec[1],pose[2]+camUpVec[2]]
-        viewMat = pybullet.computeViewMatrix(pose, camTarget, camUpVec)
-        return pybullet.getCameraImage(224, 224, viewMatrix = viewMat, projectionMatrix = self.proj_mat, renderer = pybullet.ER_BULLET_HARDWARE_OPENGL)
-
+        
     @staticmethod
     def seperate_rgbd_rgb_d(rgbd, h = 224, w = 224):
         rgb = rgbd[2][:,:,0:3].reshape(3,h,w)/255
@@ -324,55 +316,64 @@ class ur5GymEnv(gym.Env):
 
     def step(self, action, debug = False):
         #discrete action
-        deltaPose = np.array([0, 0, 0])
-        deltaOrient= np.array([0, 0, 0])
-        angle_scale = 0.05
+        delta_pos = np.array([0, 0, 0]).astype('float64')
+        delta_orient = np.array([0, 0, 0]).astype('float64')
+        angle_scale = 1
         step_size =  0.05
 
         if action == self.actions['+x']:
-            deltaPose = [step_size, 0, 0,]
+            delta_pos[0] = step_size
 
-        if action == self.actions['-x']:
-            deltaPose = [-step_size, 0, 0]
+        elif action == self.actions['-x']:
+            delta_pos[0] = -step_size
 
-        if action == self.actions['+y']:
-            deltaPose = [0, step_size, 0]
+        elif action == self.actions['+y']:
+            delta_pos[1] = step_size
 
-        if action == self.actions['-y']:
-            deltaPose = [0, -step_size, 0]
+        elif action == self.actions['-y']:
+            delta_pos[1] = -step_size
 
-        if action == self.actions['+z']:
-            deltaPose = [0, 0, step_size]
+        elif action == self.actions['+z']:
+            delta_pos[2] = step_size
 
-        if action == self.actions['-z']:
-            deltaPose = [0, 0, -step_size]
+        elif action == self.actions['-z']:
+            delta_pos[2] = -step_size
 
-        if action == self.actions['roll_+x']:
-            deltaOrient= [ step_size / angle_scale, 0, 0]
+        elif action == self.actions['roll_+x']:
+            delta_orient[0] = step_size / angle_scale
 
-        if action == self.actions['roll_-x']:
-            deltaOrient= [ -step_size / angle_scale, 0, 0]
+        elif action == self.actions['roll_-x']:
+            delta_orient[0] = -step_size / angle_scale
 
-        if action == self.actions['pitch_+y']:
-            deltaOrient= [0, step_size / angle_scale, 0]
+        elif action == self.actions['pitch_+y']:
+            delta_orient[1] = step_size / angle_scale
 
-        if action == self.actions['pitch_-y']:
-            deltaOrient= [0, -step_size / angle_scale, 0]
+        elif action == self.actions['pitch_-y']:
+            delta_orient[1] = -step_size / angle_scale
 
-        if action == self.actions['yaw_+z']:
-            deltaOrient= [0, 0, step_size / angle_scale]
+        elif action == self.actions['yaw_+z']:
+            delta_orient[2] = step_size / angle_scale
 
-        if action == self.actions['yaw_-z']:
-            deltaOrient= [0, 0, -step_size / angle_scale]
+        elif action == self.actions['yaw_-z']:
+            delta_orient[2] = -step_size / angle_scale
     
         # get current position:
-        cur_p = self.get_current_pose()
-        self.previous_pose = cur_p
+        curr_p = self.get_current_pose()
+        self.previous_pose = curr_p
         # add delta position:
         
-        new_position = np.array(cur_p[0]) + deltaPose
-        new_orientation=np.array(cur_p[1]) + pybullet.getQuaternionFromEuler(deltaOrient)
-       
+        #new_position = np.array(cur_p[0]) + delta_pos
+        #new_orientation=np.array(cur_p[1]) + pybullet.getQuaternionFromEuler(delta_orient)
+        curr_orient = pybullet.getEulerFromQuaternion(curr_p[1])
+
+        new_orient = np.array([0, 0, 0]).astype('float64')
+        new_orient = curr_orient + delta_orient
+        #print(curr_orient, delta_orient, new_orient, curr_p[0])
+        new_orient = pybullet.getQuaternionFromEuler(new_orient)
+        
+        #new_position, new_orientation = pybullet.multiplyTransforms(cur_p[0], cur_p[1], delta_pos, delta_orient)
+        new_position = np.array(curr_p[0]) + np.array(delta_pos)
+        new_orientation = new_orient
         # actuate:
 
         joint_angles = self.calculate_ik(new_position, new_orientation) # XYZ and angles set to zero
@@ -384,9 +385,9 @@ class ur5GymEnv(gym.Env):
         self.depth = self.linearize_depth(depth, self.far_val, self.near_val)
         
         # step simualator:
-        for i in range(self.actionRepeat):
+        for i in range(100):
             pybullet.stepSimulation()
-            if self.renders: time.sleep(1./240.)
+            #if self.renders: time.sleep(1./240.)
 
         self.getExtendedObservation()
         reward = self.compute_reward(self.achieved_goal, self.achieved_orient, self.desired_goal, self.previous_goal, None)
@@ -413,7 +414,7 @@ class ur5GymEnv(gym.Env):
         # sensor values:
         # js = self.get_joint_angles()
 
-        tool_pos, tool_orient = self.get_current_pose()# XYZ, no angles
+        tool_pos, tool_orient = self.get_current_pose()
         objects_pos = self.initial_obj_pos
         goal_pos = self.initial_obj_pos
 
@@ -422,7 +423,7 @@ class ur5GymEnv(gym.Env):
         self.desired_goal = np.array(goal_pos)
         self.previous_goal = np.array(self.previous_pose[0])
         self.previous_orient = np.array(self.previous_pose[1])
-        self.achieved_orient=tool_orient
+        self.achieved_orient = tool_orient
 
 
     def my_task_done(self):
