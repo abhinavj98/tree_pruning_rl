@@ -10,6 +10,7 @@
 # from pygame.locals import *
 # from OpenGL.GL import *
 # from OpenGL.GLU import *
+from threading import currentThread
 import pywavefront
 
 import random
@@ -30,7 +31,7 @@ from collections import namedtuple
 from enum import Enum
 
 ROBOT_URDF_PATH = "./ur_e_description/urdf/ur5e_with_camera.urdf"
-TREE_URDF_PATH = "./ur_e_description/urdf/tree.urdf"
+TREE_URDF_PATH = "./ur_e_description/urdf/"
 TABLE_URDF_PATH = os.path.join(pybullet_data.getDataPath(), "table/table.urdf")
 
 # x,y,z distance
@@ -77,6 +78,7 @@ class ur5GymEnv(gym.Env):
                  randObjPos=False,
                  task=0, # here target number
                  learning_param=0,
+                 complex_tree = 0,
                  width = 424,
                  height = 240):
 
@@ -90,7 +92,7 @@ class ur5GymEnv(gym.Env):
             pybullet.connect(pybullet.DIRECT)
 
         pybullet.setTimeStep(5./240.)
-        pybullet.setGravity(0,0,0)
+        pybullet.setGravity(0,0,-10)
         pybullet.setRealTimeSimulation(False)
         # pybullet.configureDebugVisualizer(pybullet.COV_ENABLE_WIREFRAME,1)
         pybullet.resetDebugVisualizerCamera( cameraDistance=1.5, cameraYaw=-73.95, cameraPitch=-38.48, cameraTargetPosition=[1.04,-0.06,0.14])
@@ -162,17 +164,25 @@ class ur5GymEnv(gym.Env):
                         'yaw_-z' : 12}
 
         self.rev_actions = {v: k for k,v in self.actions.items()}
+        self.complex_tree = complex_tree
+        scale = 1
+        if self.complex_tree:
+            self.tree = pybullet.loadURDF(TREE_URDF_PATH+"complex_tree.urdf", [2.3, 0.0, 0.0], [0, 0, 0, 1], globalScaling=1)
+            self.scene = pywavefront.Wavefront('complex_tree.obj', collect_faces=True)
+            scale = 0.15
+        else:
+            self.tree = pybullet.loadURDF(TREE_URDF_PATH+"tree.urdf", [2.3, 0.0, 0.0], [0, 0, 0, 1], globalScaling=1)
+            self.scene = pywavefront.Wavefront('tree.obj', collect_faces=True)
+            scale = 0.1
 
-        self.tree = pybullet.loadURDF(TREE_URDF_PATH, [2.3, 0.0, 0.0], [0, 0, 0, 1], globalScaling=1)
-        self.scene = pywavefront.Wavefront('project_tree.obj', collect_faces=True)
         self.tree_reachble = []
-        self.tree_target=self.getTreePoints(len(self.scene.vertices))
+        self.tree_target=self.getTreePoints(len(self.scene.vertices), scale)
         print(self.tree_target)
         self.reset()
         high = np.array([10]*self.observation.shape[0])
         self.observation_space = spaces.Box(-high, high, dtype='float32')
 
-    def getTreePoints(self, count):
+    def getTreePoints(self, count, scale):
 
         
         point=[]
@@ -183,7 +193,7 @@ class ur5GymEnv(gym.Env):
         for i in range(count):
 
             scene_box = self.scene.vertices[i]
-            tree_w_frame = pybullet.multiplyTransforms(tree_pos,tree_orient,[scene_box[0]*.1,scene_box[1]*.1,scene_box[2]*.1],[0,0,0,1])
+            tree_w_frame = pybullet.multiplyTransforms(tree_pos,tree_orient,[scene_box[0]*scale,scene_box[1]*scale,scene_box[2]*scale],[0,0,0,1])
             position=[tree_w_frame[0][0]-0.7,tree_w_frame[0][1],tree_w_frame[0][2]-.5]
             point.append(position)
            
@@ -319,7 +329,7 @@ class ur5GymEnv(gym.Env):
         delta_pos = np.array([0, 0, 0]).astype('float64')
         delta_orient = np.array([0, 0, 0]).astype('float64')
         angle_scale = 1
-        step_size =  0.05
+        step_size =  0.025
 
         if action == self.actions['+x']:
             delta_pos[0] = step_size
@@ -383,11 +393,11 @@ class ur5GymEnv(gym.Env):
         self.rgb,  depth = self.seperate_rgbd_rgb_d(rgbd)
         depth = depth.astype('float32')
         self.depth = self.linearize_depth(depth, self.far_val, self.near_val)
-        
+        print(cur_p[0])
         # step simualator:
-        for i in range(100):
+        for i in range(30):
             pybullet.stepSimulation()
-            if self.renders: time.sleep(1./240.)
+            if self.renders: time.sleep(5./240.)
 
         self.getExtendedObservation()
         reward = self.compute_reward(self.achieved_goal, self.achieved_orient, self.desired_goal, self.previous_goal, None)
@@ -463,7 +473,7 @@ class ur5GymEnv(gym.Env):
             reward += -0.1
             collision = True
             #print('Collision!')
-        reward+= -0.05
+        reward+= -0.25
         # print(target_dist, reward)
         # input()
 

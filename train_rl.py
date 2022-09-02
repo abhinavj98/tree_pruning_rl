@@ -58,6 +58,7 @@ def get_args():
     arg('--cuda', dest='cuda', action='store_true', default=False, help='Use cuda to train model')
     arg('--mps', dest='mps', action='store_true', default=False, help='Use mps to train model')
     arg('--device_num', type=str, default=0,  help='GPU number to use')
+    arg('--complex_tree', type = int, default=0, help='Use complex tree to train model')
 
     args = parser.parse_args()
     return args
@@ -96,7 +97,7 @@ def main():
 
     env = ur5GymEnv(renders=args.render, maxSteps=args.mel,
             actionRepeat=args.repeat, task=args.task, randObjPos=args.randObjPos,
-            simulatedGripper=args.simgrip, learning_param=args.lp)
+            simulatedGripper=args.simgrip, learning_param=args.lp, complex_tree = args.complex_tree)
 
     env.seed(args.seed)
     random.seed(args.seed)
