@@ -254,7 +254,7 @@ class PPO:
                 ratios = torch.exp(logprobs - old_logprobs_batch.detach())
                 # Finding Surrogate Loss:
                 advantages = old_rewards - state_values.detach()
-                ae_loss = 0.5*self.MseLoss(old_depth_batch, autoencoder_io[1]) 
+                ae_loss = self.MseLoss(old_depth_batch, autoencoder_io[1]) 
                 critic_loss = self.args.loss_value_c*self.MseLoss(state_values, old_rewards)
                 entropy_loss = self.args.loss_entropy_c*distribution_entropy  
                 surr1 = ratios * advantages
