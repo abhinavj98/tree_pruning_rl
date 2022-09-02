@@ -387,7 +387,7 @@ class ur5GymEnv(gym.Env):
         # step simualator:
         for i in range(100):
             pybullet.stepSimulation()
-            #if self.renders: time.sleep(1./240.)
+            if self.renders: time.sleep(1./240.)
 
         self.getExtendedObservation()
         reward = self.compute_reward(self.achieved_goal, self.achieved_orient, self.desired_goal, self.previous_goal, None)
