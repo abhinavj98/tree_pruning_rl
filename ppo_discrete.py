@@ -56,7 +56,8 @@ class AutoEncoder(nn.Module):
             nn.Conv2d(256, 256, 3, stride=2, padding=1),  # b, 256,7,7
             nn.ReLU()
         )
-      
+        output_conv = nn.Conv2d(32, 1, 3, padding = 'same')
+        output_conv.bias.data.fill_(0.8)
         self.decoder = nn.Sequential(
             nn.ConvTranspose2d(256, 256, 3, stride=2, output_padding=1, padding = 1), # 256. 14, 14
             nn.ReLU(),
@@ -68,7 +69,7 @@ class AutoEncoder(nn.Module):
             nn.ReLU(),
             nn.ConvTranspose2d(64, 32, 3, stride=2, output_padding=1, padding=1),  # b, 32, 224, 224
             nn.ReLU(),
-            nn.Conv2d(32, 1, 3, padding = 'same'),  # b, 1, 224, 224
+            output_conv,  # b, 1, 224, 224
             nn.ReLU()
         )
 
@@ -183,24 +184,15 @@ class PPO:
         self.args = args
         self.env = env
         self.device = self.args.device
-
-        self.state_dim = self.env.observation_space.shape[0]*3 + 7*7*16  #!!!Get this right
-        #print('--------------------------------')
-        #print(self.env.action_space.shape)
-        #self.action_dim = self.env.action_space.shape[0]
-
-        #self.state_dim = self.env.observation_space.shape[0]
         self.action_dim = self.env.action_dim
-        
+        self.state_dim = self.env.observation_space.shape[0]*3 + 7*7*16  #!!!Get this right
         self.policy = ActorCritic(self.device ,self.state_dim, self.args.emb_size, self.action_dim, self.args.action_std).to(self.device)
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=self.args.lr, betas=self.args.betas)
         
         self.policy_old = ActorCritic(self.device, self.state_dim, self.args.emb_size, self.action_dim, self.args.action_std).to(self.device)
         self.policy_old.load_state_dict(self.policy.state_dict())
-        self.autoencoder_optimizer = torch.optim.Adam(self.policy.depth_autoencoder.parameters(), lr=self.args.lr, betas=self.args.betas)
         self.MseLoss = nn.MSELoss()
-        self.train_ae = True
-    
+        
     def select_action(self, depth_features, state):
         #state = torch.FloatTensor(state.reshape(1, -1)).to(self.device)
         #image_features_avg_pooled = torch.nn.functional.avg_pool2d(depth,7)
@@ -232,7 +224,7 @@ class PPO:
         old_logprobs = torch.squeeze(torch.stack(memory.logprobs), 1).to(self.device).detach()
         old_depth = torch.squeeze(torch.stack(memory.depth), 0).to(self.device).detach()
         train_ds = TensorDataset(old_states, old_actions, old_logprobs, old_depth, rewards)
-        train_dataloader = DataLoader(train_ds, batch_size=32, shuffle=True)
+        train_dataloader = DataLoader(train_ds, batch_size=64, shuffle=True)
          #Plotting
         plot_dict = {}
         plot_dict['surr2'] =  0
@@ -247,8 +239,6 @@ class PPO:
             for old_states_batch, old_actions_batch, old_logprobs_batch, old_depth_batch, old_rewards in train_dataloader:
 
                 # Evaluating old actions and values :
-                #print(old_states_batch.shape)
-
                 logprobs, state_values, distribution_entropy, autoencoder_io = self.policy.evaluate(old_states_batch, old_depth_batch, old_actions_batch)
                 # Finding the ratio (pi_theta / pi_theta__old):
                 ratios = torch.exp(logprobs - old_logprobs_batch.detach())

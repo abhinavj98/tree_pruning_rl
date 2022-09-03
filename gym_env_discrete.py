@@ -129,6 +129,12 @@ class ur5GymEnv(gym.Env):
             self.joints[info.name] = info
 
         # object:
+        joint_angles = (0, -1.57,1.80,-3.14,-1.57, -1.57)
+        self.set_joint_angles(joint_angles)
+
+        # step simualator:
+        for i in range(1000):
+            pybullet.stepSimulation()
         self.initial_obj_pos = [1, 0, 0] # initial object pos
 
         self.name = 'ur5GymEnv'
@@ -168,11 +174,11 @@ class ur5GymEnv(gym.Env):
         scale = 1
         if self.complex_tree:
             self.tree = pybullet.loadURDF(TREE_URDF_PATH+"complex_tree.urdf", [2.3, 0.0, 0.0], [0, 0, 0, 1], globalScaling=1)
-            self.scene = pywavefront.Wavefront('complex_tree.obj', collect_faces=True)
+            self.scene = pywavefront.Wavefront('ur_e_description/meshes/complex_tree.obj', collect_faces=True)
             scale = 0.15
         else:
             self.tree = pybullet.loadURDF(TREE_URDF_PATH+"tree.urdf", [2.3, 0.0, 0.0], [0, 0, 0, 1], globalScaling=1)
-            self.scene = pywavefront.Wavefront('tree.obj', collect_faces=True)
+            self.scene = pywavefront.Wavefront('ur_e_description/meshes/tree.obj', collect_faces=True)
             scale = 0.1
 
         self.tree_reachble = []
@@ -295,6 +301,7 @@ class ur5GymEnv(gym.Env):
         return depth_linearized
 
     def reset(self):
+        
         self.stepCounter = 0
         self.terminated = False
         self.ur5_or = [0.0, 1/2*math.pi, 0.0]
@@ -312,7 +319,9 @@ class ur5GymEnv(gym.Env):
         self.sphereUid = pybullet.createMultiBody(0.0, colSphereId, visualShapeId, [self.initial_obj_pos[0],self.initial_obj_pos[1],self.initial_obj_pos[2]], [0,0,0,1])
         joint_angles = (0, -1.57,1.80,-3.14,-1.57, -1.57)
         #joint_angles = (1.57,-1.57,1.80,-3.14,3.14,0)
-        
+        pybullet.setCollisionFilterPair(self.ur5, self.tree,1,7,0)
+        pybullet.setCollisionFilterPair(self.ur5, self.tree,1,6,0)
+        pybullet.setCollisionFilterPair(self.ur5, self.tree,1,5,0)
         self.set_joint_angles(joint_angles)
 
         # step simualator:
@@ -321,6 +330,9 @@ class ur5GymEnv(gym.Env):
 
         # get obs and return:
         self.getExtendedObservation()
+        pybullet.setCollisionFilterPair(self.ur5, self.tree,0,7,1)
+        pybullet.setCollisionFilterPair(self.ur5, self.tree,0,6,1)
+        pybullet.setCollisionFilterPair(self.ur5, self.tree,0,5,1)
         return self.observation
 
 
@@ -329,7 +341,7 @@ class ur5GymEnv(gym.Env):
         delta_pos = np.array([0, 0, 0]).astype('float64')
         delta_orient = np.array([0, 0, 0]).astype('float64')
         angle_scale = 1
-        step_size =  0.025
+        step_size =  0.05
 
         if action == self.actions['+x']:
             delta_pos[0] = step_size
@@ -393,7 +405,6 @@ class ur5GymEnv(gym.Env):
         self.rgb,  depth = self.seperate_rgbd_rgb_d(rgbd)
         depth = depth.astype('float32')
         self.depth = self.linearize_depth(depth, self.far_val, self.near_val)
-        print(cur_p[0])
         # step simualator:
         for i in range(30):
             pybullet.stepSimulation()
@@ -457,23 +468,23 @@ class ur5GymEnv(gym.Env):
 
         # print(approach_velocity)
         # input()
-        reward += self.target_reward*20 #Mean around 0 -> Change in distance
-        dist_reward = self.target_reward*20
+        reward += self.target_reward*20/150 #Mean around 0 -> Change in distance
+        dist_reward = self.target_reward*20/150
         # task 0: reach object:
         terminate_reward = 0
         if self.target_dist < self.learning_param:  # and approach_velocity < 0.05:
             self.terminated = True
-            terminate_reward = 2
-            reward += 2
+            terminate_reward = 1
+            reward += 1
             print('Successful!')
 
         # check collisions:
         collision = False
         if self.check_collisions():
-            reward += -0.1
+            reward += -0.005
             collision = True
             #print('Collision!')
-        reward+= -0.25
+        reward+= -0.005
         # print(target_dist, reward)
         # input()
 

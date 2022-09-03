@@ -2,7 +2,7 @@
   <link name="tree">
     <visual>
       <geometry>
-        <mesh filename="../meshes/project_tree.obj" scale=".15 .15 .15"/>
+        <mesh filename="../meshes/complex_tree.obj" scale=".15 .15 .15"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -10,7 +10,7 @@
     </visual>
     <collision concave = "true">
       <geometry>
-         <mesh filename="../meshes/project_tree.obj" scale=".15 .15 .15"/>
+         <mesh filename="../meshes/complex_tree.obj" scale=".15 .15 .15"/>
       </geometry>
     </collision>
     <inertial>
