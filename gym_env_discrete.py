@@ -140,8 +140,8 @@ class ur5GymEnv(gym.Env):
         self.name = 'ur5GymEnv'
         self.simulatedGripper = simulatedGripper
         # discrete action
-        self.action_dim = 6
-        #self.action_dim = 12
+        #self.action_dim = 6
+        self.action_dim = 12
         self.stepCounter = 0
         self.maxSteps = maxSteps
         self.terminated = False
@@ -272,7 +272,7 @@ class ur5GymEnv(gym.Env):
 
     def get_current_pose(self):
         linkstate = pybullet.getLinkState(self.ur5, self.end_effector_index, computeForwardKinematics=True)
-        position, orientation = linkstate[4], linkstate[5]
+        position, orientation = linkstate[4], linkstate[1]
         return (position, orientation)
 
     def set_camera(self, pose, orientation):
@@ -340,7 +340,7 @@ class ur5GymEnv(gym.Env):
         #discrete action
         delta_pos = np.array([0, 0, 0]).astype('float64')
         delta_orient = np.array([0, 0, 0]).astype('float64')
-        angle_scale = 1
+        angle_scale = np.pi
         step_size =  0.05
 
         if action == self.actions['+x']:
@@ -362,55 +362,46 @@ class ur5GymEnv(gym.Env):
             delta_pos[2] = -step_size
 
         elif action == self.actions['roll_+x']:
-            delta_orient[0] = step_size / angle_scale
+            delta_orient[0] = step_size * angle_scale
 
         elif action == self.actions['roll_-x']:
-            delta_orient[0] = -step_size / angle_scale
+            delta_orient[0] = -step_size * angle_scale
 
         elif action == self.actions['pitch_+y']:
-            delta_orient[1] = step_size / angle_scale
+            delta_orient[1] = step_size * angle_scale
 
         elif action == self.actions['pitch_-y']:
-            delta_orient[1] = -step_size / angle_scale
+            delta_orient[1] = -step_size * angle_scale
 
         elif action == self.actions['yaw_+z']:
-            delta_orient[2] = step_size / angle_scale
+            delta_orient[2] = step_size * angle_scale
 
         elif action == self.actions['yaw_-z']:
-            delta_orient[2] = -step_size / angle_scale
+            delta_orient[2] = -step_size * angle_scale
     
         # get current position:
         curr_p = self.get_current_pose()
         self.previous_pose = curr_p
         # add delta position:
+        delta_orient = pybullet.getQuaternionFromEuler(delta_orient)
         
-        #new_position = np.array(cur_p[0]) + delta_pos
-        #new_orientation=np.array(cur_p[1]) + pybullet.getQuaternionFromEuler(delta_orient)
-        curr_orient = pybullet.getEulerFromQuaternion(curr_p[1])
-
-        new_orient = np.array([0, 0, 0]).astype('float64')
-        new_orient = curr_orient + delta_orient
-        #print(curr_orient, delta_orient, new_orient, curr_p[0])
-        new_orient = pybullet.getQuaternionFromEuler(new_orient)
+        new_position, new_orientation = pybullet.multiplyTransforms(curr_p[0], curr_p[1], delta_pos, delta_orient)
         
-        #new_position, new_orientation = pybullet.multiplyTransforms(cur_p[0], cur_p[1], delta_pos, delta_orient)
-        new_position = np.array(curr_p[0]) + np.array(delta_pos)
-        new_orientation = new_orient
         # actuate:
 
         joint_angles = self.calculate_ik(new_position, new_orientation) # XYZ and angles set to zero
         self.set_joint_angles(joint_angles)
-        cur_p = self.get_current_pose()
-        rgbd = self.set_camera(cur_p[0], cur_p[1])
-        self.rgb,  depth = self.seperate_rgbd_rgb_d(rgbd)
-        depth = depth.astype('float32')
-        self.depth = self.linearize_depth(depth, self.far_val, self.near_val)
+       
         # step simualator:
         for i in range(30):
             pybullet.stepSimulation()
             if self.renders: time.sleep(5./240.)
-
         self.getExtendedObservation()
+        new_p = self.get_current_pose()
+        rgbd = self.set_camera(new_p[0], new_p[1])
+        self.rgb,  depth = self.seperate_rgbd_rgb_d(rgbd)
+        depth = depth.astype('float32')
+        self.depth = self.linearize_depth(depth, self.far_val, self.near_val)
         reward = self.compute_reward(self.achieved_goal, self.achieved_orient, self.desired_goal, self.previous_goal, None)
         done = self.my_task_done()
 
