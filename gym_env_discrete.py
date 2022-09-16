@@ -430,7 +430,7 @@ class ur5GymEnv(gym.Env):
         objects_pos = self.initial_obj_pos
         goal_pos = self.initial_obj_pos
 
-        self.observation = np.array(np.concatenate((tool_pos, objects_pos)))
+        self.observation = np.array(np.concatenate((tool_pos, tool_orient,  objects_pos)))
         self.achieved_goal = np.array(tool_pos)
         self.desired_goal = np.array(goal_pos)
         self.previous_goal = np.array(self.previous_pose[0])
