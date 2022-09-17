@@ -101,7 +101,7 @@ class ur5GymEnv(gym.Env):
         self.end_effector_index = 7
         #self.table = pybullet.loadURDF(TABLE_URDF_PATH, [0.2, 0, -0.6300], [0, 0, 0, 1])
         flags = pybullet.URDF_USE_SELF_COLLISION
-        self.ur5 = pybullet.loadURDF(ROBOT_URDF_PATH, [0.8, 0, 0], [0, 0, 0, 1], flags=flags)
+        self.ur5 = pybullet.loadURDF(ROBOT_URDF_PATH, [0.7, 0, 0], [0, 0, 0, 1], flags=flags)
         self.num_joints = pybullet.getNumJoints(self.ur5)
         self.control_joints = ["shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint", "wrist_1_joint", "wrist_2_joint", "wrist_3_joint"]
         self.joint_type_list = ["REVOLUTE", "PRISMATIC", "SPHERICAL", "PLANAR", "FIXED"]
@@ -272,7 +272,7 @@ class ur5GymEnv(gym.Env):
 
     def get_current_pose(self):
         linkstate = pybullet.getLinkState(self.ur5, self.end_effector_index, computeForwardKinematics=True)
-        position, orientation = linkstate[4], linkstate[1]
+        position, orientation = linkstate[4], linkstate[1] #Position wrt end effector, orientation wrt COM
         return (position, orientation)
 
     def set_camera(self, pose, orientation):
@@ -295,10 +295,15 @@ class ur5GymEnv(gym.Env):
         rgb = rgbd[2][:,:,0:3].reshape(3,h,w)/255
         depth = rgbd[3]
         return rgb, depth
+
     @staticmethod
     def linearize_depth(depth, far_val, near_val):
         depth_linearized = near_val / (far_val - (far_val -near_val) * depth)/depth
         return depth_linearized
+
+    # @staticmethod
+    # def normalize_depth(depth):
+    #     depth = (depth - 0.5)
 
     def reset(self):
         
@@ -430,7 +435,7 @@ class ur5GymEnv(gym.Env):
         objects_pos = self.initial_obj_pos
         goal_pos = self.initial_obj_pos
 
-        self.observation = np.array(np.concatenate((tool_pos, objects_pos)))
+        self.observation = np.array(np.concatenate((tool_pos, tool_orient, objects_pos)))
         self.achieved_goal = np.array(tool_pos)
         self.desired_goal = np.array(goal_pos)
         self.previous_goal = np.array(self.previous_pose[0])
