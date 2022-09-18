@@ -57,7 +57,7 @@ class AutoEncoder(nn.Module):
             nn.ReLU()
         )
         output_conv = nn.Conv2d(32, 1, 3, padding = 'same')
-        output_conv.bias.data.fill_(0.8)
+        output_conv.bias.data.fill_(0.4)
         self.decoder = nn.Sequential(
             nn.ConvTranspose2d(256, 256, 3, stride=2, output_padding=1, padding = 1), # 256. 14, 14
             nn.ReLU(),
@@ -189,14 +189,14 @@ class PPO:
         self.policy = ActorCritic(self.device ,self.state_dim, self.args.emb_size, self.action_dim, self.args.action_std).to(self.device)
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=self.args.lr, betas=self.args.betas)
         
-        self.policy_old = ActorCritic(self.device, self.state_dim, self.args.emb_size, self.action_dim, self.args.action_std).to(self.device)
-        self.policy_old.load_state_dict(self.policy.state_dict())
+        #self.policy_old = ActorCritic(self.device, self.state_dim, self.args.emb_size, self.action_dim, self.args.action_std).to(self.device)
+        #self.policy_old.load_state_dict(self.policy.state_dict())
         self.MseLoss = nn.MSELoss()
         
     def select_action(self, depth_features, state):
         #state = torch.FloatTensor(state.reshape(1, -1)).to(self.device)
         #image_features_avg_pooled = torch.nn.functional.avg_pool2d(depth,7)
-        action = self.policy_old.act(depth_features, state)
+        action = self.policy.act(depth_features, state)
         return action[0].cpu().data.numpy().flatten(), action[1]
 
     def get_depth_features(self, img):
@@ -269,5 +269,5 @@ class PPO:
                 self.optimizer.step()
             
         # Copy new weights into old policy:
-        self.policy_old.load_state_dict(self.policy.state_dict())
+       # self.policy_old.load_state_dict(self.policy.state_dict())
         return plot_dict

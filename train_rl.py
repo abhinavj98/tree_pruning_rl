@@ -127,7 +127,7 @@ def main():
                 gif = True
             else:
                 gif = False
-            depth = (torch.tensor(env.depth).to(args.device).unsqueeze(0))
+            depth = (torch.tensor(env.depth-0.5).to(args.device).unsqueeze(0))
             depth_features = ppo.get_depth_features(depth.unsqueeze(0))[0]
             state = torch.FloatTensor(state.reshape(1, -1)).to(args.device)
             memory.depth.append(depth)
@@ -171,7 +171,7 @@ def main():
                 time_step = 0
                 for k,v in loss_dict.items():
                     writer.add_scalar("{}/train".format(k), v, i_episode)
-                ae_image = torchvision.utils.make_grid([depth, ppo.policy.depth_autoencoder(depth.unsqueeze(0))[1].squeeze(0)])
+                ae_image = torchvision.utils.make_grid([depth+0.5, ppo.policy.depth_autoencoder(depth.unsqueeze(0))[1].squeeze(0)+0.5])
                 writer.add_image("train/ae", ae_image, i_episode)
             running_reward += reward
             ep_total += reward
