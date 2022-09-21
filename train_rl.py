@@ -114,6 +114,15 @@ def main():
     
     # training loop:
     print('Starting training with learning_param:', args.lp)
+
+    layout = {
+    "RewardCritic": {
+        "Critic vs Reward": ["Multiline", ["critic_value/train", "reward/train"]],
+    },
+    }
+
+    random_count = 0
+    writer.add_custom_scalars(layout)
     for i_episode in range(1, args.max_episodes+1):
         state = env.reset()
         ep_collision = 0
@@ -140,14 +149,13 @@ def main():
             memory.logprobs.append(action_logprob)
 
             state, reward_tuple, done, debug_img,  _ = env.step(action, gif)
-          
-
+            
             reward = reward_tuple[0]
             # Saving reward and is_terminals:
             memory.rewards.append(reward)
             memory.is_terminals.append(done)
+            critic_value = ppo.policy.critic(memory.depth_features[-1].unsqueeze(0), memory.states[-1])
             if gif:
-                critic_value = ppo.policy.critic(memory.depth_features[-1].unsqueeze(0), memory.states[-1])
                 debug_img = cv2.putText(debug_img, "Critic: "+str(critic_value.item()), (0,50), cv2.FONT_HERSHEY_SIMPLEX, 
                     1, (255,0,0), 2, cv2.LINE_AA)
                 debug_img = cv2.putText(debug_img, "Reward: "+str(memory.rewards[-1]), (0,80), cv2.FONT_HERSHEY_SIMPLEX, 
@@ -170,9 +178,21 @@ def main():
                 memory.clear_memory()
                 time_step = 0
                 for k,v in loss_dict.items():
+                    if k == 'random':
+                        continue
                     writer.add_scalar("{}/train".format(k), v, i_episode)
                 ae_image = torchvision.utils.make_grid([depth+0.5, ppo.policy.depth_autoencoder(depth.unsqueeze(0))[1].squeeze(0)+0.5])
                 writer.add_image("train/ae", ae_image, i_episode)
+                print(len(loss_dict['random']))
+                for i in loss_dict['random']:
+                    if i.shape[0]==0:
+                        break
+                    writer.add_image("train/random", i, random_count)
+                    random_count+=1
+                del loss_dict['random'][:]
+            writer.add_scalar("critic_value/train", critic_value, (i_episode-1)*args.mel+t)
+            writer.add_scalar("reward/train", reward, (i_episode-1)*args.mel+t)
+
             running_reward += reward
             ep_total += reward
             ep_goal_reward += reward_tuple[1]

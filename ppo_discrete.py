@@ -70,7 +70,7 @@ class AutoEncoder(nn.Module):
             nn.ConvTranspose2d(64, 32, 3, stride=2, output_padding=1, padding=1),  # b, 32, 224, 224
             nn.ReLU(),
             output_conv,  # b, 1, 224, 224
-            nn.ReLU()
+            #nn.ReLU()
         )
 
     def forward(self, x):
@@ -192,6 +192,7 @@ class PPO:
         #self.policy_old = ActorCritic(self.device, self.state_dim, self.args.emb_size, self.action_dim, self.args.action_std).to(self.device)
         #self.policy_old.load_state_dict(self.policy.state_dict())
         self.MseLoss = nn.MSELoss()
+        self.aeMseLoss = nn.MSELoss(reduction='none')
         
     def select_action(self, depth_features, state):
         #state = torch.FloatTensor(state.reshape(1, -1)).to(self.device)
@@ -234,8 +235,9 @@ class PPO:
         plot_dict['total_loss'] =  0
         plot_dict['ae_loss'] =  0
         plot_dict['entropy_loss'] = 0
+        plot_dict['random'] = []
         # Optimize policy for K epochs:
-        for _ in range(self.args.K_epochs):
+        for epoch in range(self.args.K_epochs):
             for old_states_batch, old_actions_batch, old_logprobs_batch, old_depth_batch, old_rewards in train_dataloader:
 
                 # Evaluating old actions and values :
@@ -244,7 +246,7 @@ class PPO:
                 ratios = torch.exp(logprobs - old_logprobs_batch.detach())
                 # Finding Surrogate Loss:
                 advantages = old_rewards - state_values.detach()
-                ae_loss = self.MseLoss(old_depth_batch, autoencoder_io[1]) 
+                ae_loss = self.aeMseLoss(old_depth_batch, autoencoder_io[1]) 
                 critic_loss = self.args.loss_value_c*self.MseLoss(state_values, old_rewards)
                 entropy_loss = self.args.loss_entropy_c*distribution_entropy  
                 surr1 = ratios * advantages
@@ -252,8 +254,13 @@ class PPO:
                 loss = -torch.min(surr1, surr2) + \
                         + critic_loss + \
                         - entropy_loss +\
-                        +  ae_loss
+                        +  ae_loss.mean()
                 #Make plotting
+                #print((old_depth_batch[(ae_loss>0.1)]).shape)
+               # print(ae_loss)
+                
+                elem_aeloss = ae_loss.reshape(-1,1,224,224).mean(dim = [2,3], keepdim = True).squeeze().squeeze().squeeze()
+                plot_dict['random'].extend(old_depth_batch[torch.where(elem_aeloss>0.3)])
                 plot_dict['surr1']-=surr1.mean()/self.args.K_epochs
                 plot_dict['surr2']-=surr2.mean()/self.args.K_epochs
                 plot_dict['critic_loss']+=critic_loss.mean()/self.args.K_epochs
