@@ -57,7 +57,7 @@ class AutoEncoder(nn.Module):
             nn.ReLU()
         )
         output_conv = nn.Conv2d(32, 1, 3, padding = 'same')
-        output_conv.bias.data.fill_(0.4)
+        output_conv.bias.data.fill_(0.3)
         self.decoder = nn.Sequential(
             nn.ConvTranspose2d(256, 256, 3, stride=2, output_padding=1, padding = 1), # 256. 14, 14
             nn.ReLU(),
