@@ -41,33 +41,27 @@ class AutoEncoder(nn.Module):
         self.encoder = nn.Sequential(
             nn.Conv2d(1, 16, 3, padding='same'),  # b, 16, 224, 224
             nn.ReLU(),
-            nn.Conv2d(16, 32, 3, padding=1, stride = 2),  # b, 32, 112, 112
+            nn.Conv2d(16, 64, 3, padding=1, stride=2),  #  b, 64, 112, 112
             nn.ReLU(),
-            nn.Conv2d(32, 64, 3, padding='same'),  #  b, 64, 112, 112
+            nn.Conv2d(64, 128, 3, padding=1, stride = 2),  #  b, 64, 56, 56
             nn.ReLU(),
-            nn.Conv2d(64, 64, 3, padding=1, stride = 2),  #  b, 64, 56, 56
+            nn.Conv2d(128, 128, 3, padding=1, stride = 2),  #  b, 128, 28, 28
             nn.ReLU(),
-            nn.Conv2d(64, 128, 3, padding='same'),  #  b, 128, 56, 56
+            nn.Conv2d(128, 128, 3, padding=1, stride = 2),  #  b, 128, 14, 14
             nn.ReLU(),
-            nn.Conv2d(128, 256, 3, padding=1, stride = 2),  #  b, 256, 28, 28
-            nn.ReLU(),
-            nn.Conv2d(256, 256, 3, stride=2, padding=1),  # b, 256,14,14
-            nn.ReLU(),
-            nn.Conv2d(256, 256, 3, stride=2, padding=1),  # b, 256,7,7
+            nn.Conv2d(128, 128, 3, padding=1, stride = 2),  #  b, 128, 7, 7
             nn.ReLU()
         )
-        output_conv = nn.Conv2d(32, 1, 3, padding = 'same')
+        output_conv = nn.ConvTranspose2d(16, 1, 3, stride=2, output_padding=1, padding=1)
         output_conv.bias.data.fill_(0.3)
         self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(256, 256, 3, stride=2, output_padding=1, padding = 1), # 256. 14, 14
+            nn.ConvTranspose2d(128, 128, 3, stride=2, output_padding=1, padding = 1), # 128. 14, 14
             nn.ReLU(),
-            nn.ConvTranspose2d(256, 256, 3, stride=2, output_padding=1, padding=1),  # b, 256, 28, 28
+            nn.ConvTranspose2d(128, 64, 3, stride=2, output_padding=1, padding=1),  # b, 64, 28, 28
             nn.ReLU(),
-            nn.ConvTranspose2d(256, 128, 3, stride=2, output_padding=1, padding=1),  # b, 128, 56, 56
+            nn.ConvTranspose2d(64, 32, 3, stride=2, output_padding=1, padding=1),  # b, 32, 56, 56
             nn.ReLU(),
-            nn.ConvTranspose2d(128, 64, 3, stride=2, output_padding=1, padding=1),  # b, 64, 112, 112
-            nn.ReLU(),
-            nn.ConvTranspose2d(64, 32, 3, stride=2, output_padding=1, padding=1),  # b, 32, 224, 224
+            nn.ConvTranspose2d(32, 16, 3, stride=2, output_padding=1, padding=1),  # b, 32, 112, 112
             nn.ReLU(),
             output_conv,  # b, 1, 224, 224
             #nn.ReLU()
@@ -83,19 +77,13 @@ class Actor(nn.Module):
         super(Actor, self).__init__()
         emb_ds = int(emb_size/4)
         self.conv = nn.Sequential(
-                    nn.Conv2d(256, 128, 1, padding='same'),
-                    nn.ReLU(),
                     nn.Conv2d(128, 16, 1, padding='same'),
                     nn.ReLU(),
                     )
         self.dense =  nn.Sequential(
                     nn.Linear(state_dim, emb_size),
                     nn.ReLU(),
-                    nn.Linear(emb_size, emb_size),
-                    nn.ReLU(),
-                    nn.Linear(emb_size, emb_ds),
-                    nn.ReLU(),
-                    nn.Linear(emb_ds, action_dim),
+                    nn.Linear(emb_size, action_dim),
                     nn.Softmax(dim=-1) #discrete action
                     )
     def forward(self, image_features, state):
@@ -114,19 +102,13 @@ class Critic(nn.Module):
         super(Critic, self).__init__()
         emb_ds = int(emb_size/4)
         self.conv = nn.Sequential(
-                    nn.Conv2d(256, 128, 1, padding='same'),
-                    nn.ReLU(),
                     nn.Conv2d(128, 16, 1, padding='same'),
-                    nn.ReLU(),
+                    nn.ReLU()
                     )
         self.dense = nn.Sequential(
                 nn.Linear(state_dim, emb_size),
                 nn.ReLU(),
-                nn.Linear(emb_size, emb_size),
-                nn.ReLU(),
-                nn.Linear(emb_size, emb_ds),
-                nn.ReLU(),
-                nn.Linear(emb_ds, 1)
+                nn.Linear(emb_size, 1)
                 )
     def forward(self, image_features, state):
         state = torch.cat((state, state, state),-1)
