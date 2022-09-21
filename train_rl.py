@@ -22,7 +22,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from torch.utils.tensorboard import SummaryWriter
 import cv2
-writer = SummaryWriter()
+writer = SummaryWriter(log_dir = "newAE")
 
 title = 'PyBullet UR5 robot'
 
