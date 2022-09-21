@@ -22,7 +22,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from torch.utils.tensorboard import SummaryWriter
 import cv2
-writer = SummaryWriter(log_dir = "newAE")
+writer = SummaryWriter()
 
 title = 'PyBullet UR5 robot'
 
@@ -53,7 +53,8 @@ def get_args():
     arg('--lr', type=float, default=1e-3, help='parameters for Adam optimizer')
     arg('--betas', type=float, default=(0.9, 0.999), help='')
     arg('--loss_entropy_c', type=float, default=0.01, help='coefficient for entropy term in loss')
-    arg('--loss_value_c', type=float, default=0.5, help='coefficient for value term in loss')
+    arg('--loss_value_c', type=float, default=0.12, help='coefficient for value term in loss')
+    arg('--loss_ae_c', type=float, default=0.25, help='coefficient for ae loss term in loss')
     arg('--save_dir', type=str, default='saved_rl_models/', help='path to save the models')
     arg('--cuda', dest='cuda', action='store_true', default=False, help='Use cuda to train model')
     arg('--mps', dest='mps', action='store_true', default=False, help='Use mps to train model')
@@ -183,7 +184,6 @@ def main():
                     writer.add_scalar("{}/train".format(k), v, i_episode)
                 ae_image = torchvision.utils.make_grid([depth+0.5, ppo.policy.depth_autoencoder(depth.unsqueeze(0))[1].squeeze(0)+0.5])
                 writer.add_image("train/ae", ae_image, i_episode)
-                print(len(loss_dict['random']))
                 for i in loss_dict['random']:
                     if i.shape[0]==0:
                         break

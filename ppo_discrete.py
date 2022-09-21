@@ -254,7 +254,7 @@ class PPO:
                 loss = -torch.min(surr1, surr2) + \
                         + critic_loss + \
                         - entropy_loss +\
-                        +  ae_loss.mean()
+                        +  ae_loss.mean()*self.args.loss_ae_c
                 #Make plotting
                 #print((old_depth_batch[(ae_loss>0.1)]).shape)
                # print(ae_loss)
