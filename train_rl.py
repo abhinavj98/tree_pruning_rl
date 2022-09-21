@@ -138,8 +138,14 @@ def main():
             else:
                 gif = False
             depth = (torch.tensor(env.depth-0.5).to(args.device).unsqueeze(0))
+            if torch.isnan(depth).any():
+                print("Depth is NAN!!!!!!!!!!!!!!!!!")
             depth_features = ppo.get_depth_features(depth.unsqueeze(0))[0]
+            if torch.isnan(depth_features).any():
+                print("Depth features in train_rl is Nan!!!!!!!!!!!!!!!!!")
             state = torch.FloatTensor(state.reshape(1, -1)).to(args.device)
+            if torch.isnan(state).any():
+                print("State  in train_rl is Nan!!!!!!!!!!!!!!!!!")
             memory.depth.append(depth)
             memory.states.append(state)
             memory.depth_features.append(depth_features.squeeze())

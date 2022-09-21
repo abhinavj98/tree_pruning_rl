@@ -133,6 +133,7 @@ class ActorCritic(nn.Module):
         self.actor = Actor(device, state_dim, emb_size, action_dim, action_std).to(self.device)
         # critic
         self.critic = Critic(device, state_dim, emb_size, action_dim, action_std).to(self.device)
+
       
         
         # discrete action
@@ -149,6 +150,8 @@ class ActorCritic(nn.Module):
     
     def evaluate(self, state, depth, action):
         depth_features = self.depth_autoencoder(depth)
+        if torch.isnan(depth_features).any():
+            print("Depth_features  in eval is Nan!!!!!!!!!!!!!!!!!")
         action_probs = self.actor(depth_features[0], state)
 
         distribution = Categorical(action_probs)
@@ -171,19 +174,19 @@ class PPO:
         self.policy = ActorCritic(self.device ,self.state_dim, self.args.emb_size, self.action_dim, self.args.action_std).to(self.device)
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=self.args.lr, betas=self.args.betas)
         
-        #self.policy_old = ActorCritic(self.device, self.state_dim, self.args.emb_size, self.action_dim, self.args.action_std).to(self.device)
-        #self.policy_old.load_state_dict(self.policy.state_dict())
+        self.policy_old = ActorCritic(self.device, self.state_dim, self.args.emb_size, self.action_dim, self.args.action_std).to(self.device)
+        self.policy_old.load_state_dict(self.policy.state_dict())
         self.MseLoss = nn.MSELoss()
         self.aeMseLoss = nn.MSELoss(reduction='none')
         
     def select_action(self, depth_features, state):
         #state = torch.FloatTensor(state.reshape(1, -1)).to(self.device)
         #image_features_avg_pooled = torch.nn.functional.avg_pool2d(depth,7)
-        action = self.policy.act(depth_features, state)
+        action = self.policy_old.act(depth_features, state)
         return action[0].cpu().data.numpy().flatten(), action[1]
 
     def get_depth_features(self, img):
-        return self.policy.depth_autoencoder(img)
+        return self.policy_old.depth_autoencoder(img)
 
     
     def update(self, memory):
@@ -258,5 +261,5 @@ class PPO:
                 self.optimizer.step()
             
         # Copy new weights into old policy:
-       # self.policy_old.load_state_dict(self.policy.state_dict())
+        self.policy_old.load_state_dict(self.policy.state_dict())
         return plot_dict
