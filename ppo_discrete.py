@@ -150,7 +150,7 @@ class ActorCritic(nn.Module):
     
     def evaluate(self, state, depth, action):
         depth_features = self.depth_autoencoder(depth)
-        if torch.isnan(depth_features).any():
+        if torch.isnan(depth_features[0]).any():
             print("Depth_features  in eval is Nan!!!!!!!!!!!!!!!!!")
         action_probs = self.actor(depth_features[0], state)
 

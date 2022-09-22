@@ -22,7 +22,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 from torch.utils.tensorboard import SummaryWriter
 import cv2
-writer = SummaryWriter()
 
 title = 'PyBullet UR5 robot'
 
@@ -60,12 +59,14 @@ def get_args():
     arg('--mps', dest='mps', action='store_true', default=False, help='Use mps to train model')
     arg('--device_num', type=str, default=0,  help='GPU number to use')
     arg('--complex_tree', type = int, default=0, help='Use complex tree to train model')
+    arg('--name', type = str, default="", help='Name for tensorboard logging')
 
     args = parser.parse_args()
     return args
 
 args = get_args() # Holds all the input arguments
 
+writer = SummaryWriter(log_dir = "shallrun", comment = args.name)
 np.set_printoptions(precision=2)
 torch.set_printoptions(profile="full", precision=2)
 
@@ -193,7 +194,8 @@ def main():
                 for i in loss_dict['random']:
                     if i.shape[0]==0:
                         break
-                    writer.add_image("train/random", i, random_count)
+                    ae_image = torchvision.utils.make_grid([i+0.5, ppo.policy.depth_autoencoder(i.unsqueeze(0))[1].squeeze(0)+0.5])
+                    writer.add_image("train/random", i, ae_image)
                     random_count+=1
                 del loss_dict['random'][:]
             writer.add_scalar("critic_value/train", critic_value, (i_episode-1)*args.mel+t)
