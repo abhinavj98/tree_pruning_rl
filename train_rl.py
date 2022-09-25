@@ -66,7 +66,7 @@ def get_args():
 
 args = get_args() # Holds all the input arguments
 
-writer = SummaryWriter(log_dir = "shallrun", comment = args.name)
+writer = SummaryWriter(log_dir = "runs/"+args.name)
 np.set_printoptions(precision=2)
 torch.set_printoptions(profile="full", precision=2)
 
@@ -195,7 +195,7 @@ def main():
                     if i.shape[0]==0:
                         break
                     ae_image = torchvision.utils.make_grid([i+0.5, ppo.policy.depth_autoencoder(i.unsqueeze(0))[1].squeeze(0)+0.5])
-                    writer.add_image("train/random", i, ae_image)
+                    writer.add_image("train/random", ae_image, random_count)
                     random_count+=1
                 del loss_dict['random'][:]
             writer.add_scalar("critic_value/train", critic_value, (i_episode-1)*args.mel+t)

@@ -245,7 +245,7 @@ class PPO:
                # print(ae_loss)
                 
                 elem_aeloss = ae_loss.reshape(-1,1,224,224).mean(dim = [2,3], keepdim = True).squeeze().squeeze().squeeze()
-                plot_dict['random'].extend(old_depth_batch[torch.where(elem_aeloss>0.3)])
+                plot_dict['random'].extend(old_depth_batch[torch.where(elem_aeloss>10)])
                 plot_dict['surr1']-=surr1.mean()/self.args.K_epochs
                 plot_dict['surr2']-=surr2.mean()/self.args.K_epochs
                 plot_dict['critic_loss']+=critic_loss.mean()/self.args.K_epochs
