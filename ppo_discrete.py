@@ -124,7 +124,7 @@ class Critic(nn.Module):
 
 
 class ActorCritic(nn.Module):
-    def __init__(self, device, state_dim, emb_size, action_dim, action_std):
+    def __init__(self, device, state_dim, emb_size, action_dim, action_std, writer = None):
         self.device = device
         super(ActorCritic, self).__init__()
           # autoencoder
@@ -152,6 +152,8 @@ class ActorCritic(nn.Module):
         depth_features = self.depth_autoencoder(depth)
         if torch.isnan(depth_features[0]).any():
             print("Depth_features  in eval is Nan!!!!!!!!!!!!!!!!!")
+            if writer:
+                self.writer.add_image("train/random", depth+0.5, 0)
         action_probs = self.actor(depth_features[0], state)
 
         distribution = Categorical(action_probs)
@@ -165,19 +167,20 @@ class ActorCritic(nn.Module):
 
 
 class PPO:
-    def __init__(self, args, env):
+    def __init__(self, args, env, writer):
         self.args = args
         self.env = env
         self.device = self.args.device
         self.action_dim = self.env.action_dim
         self.state_dim = self.env.observation_space.shape[0]*3 + 7*7*16  #!!!Get this right
-        self.policy = ActorCritic(self.device ,self.state_dim, self.args.emb_size, self.action_dim, self.args.action_std).to(self.device)
+        self.policy = ActorCritic(self.device ,self.state_dim, self.args.emb_size, self.action_dim, self.args.action_std, writer = self.writer).to(self.device)
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=self.args.lr, betas=self.args.betas)
         
-        self.policy_old = ActorCritic(self.device, self.state_dim, self.args.emb_size, self.action_dim, self.args.action_std).to(self.device)
+        self.policy_old = ActorCritic(self.device, self.state_dim, self.args.emb_size, self.action_dim, self.args.action_std, writer = self.writer).to(self.device)
         self.policy_old.load_state_dict(self.policy.state_dict())
         self.MseLoss = nn.MSELoss()
         self.aeMseLoss = nn.MSELoss(reduction='none')
+        self.writer = writer
         
     def select_action(self, depth_features, state):
         #state = torch.FloatTensor(state.reshape(1, -1)).to(self.device)

@@ -107,7 +107,7 @@ def main():
     torch.manual_seed(args.seed)
 
     memory = Memory()
-    ppo = PPO(args, env)
+    ppo = PPO(args, env, writer)
 
     # logging variables
     running_reward = 0
