@@ -170,6 +170,7 @@ class PPO:
     def __init__(self, args, env, writer):
         self.args = args
         self.env = env
+        self.writer = writer
         self.device = self.args.device
         self.action_dim = self.env.action_dim
         self.state_dim = self.env.observation_space.shape[0]*3 + 7*7*16  #!!!Get this right
@@ -180,7 +181,7 @@ class PPO:
         self.policy_old.load_state_dict(self.policy.state_dict())
         self.MseLoss = nn.MSELoss()
         self.aeMseLoss = nn.MSELoss(reduction='none')
-        self.writer = writer
+        
         
     def select_action(self, depth_features, state):
         #state = torch.FloatTensor(state.reshape(1, -1)).to(self.device)
