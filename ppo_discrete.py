@@ -52,18 +52,22 @@ class AutoEncoder(nn.Module):
             nn.Conv2d(128, 128, 3, padding=1, stride = 2),  #  b, 128, 7, 7
             nn.ReLU()
         )
-        output_conv = nn.ConvTranspose2d(16, 1, 3, stride=2, output_padding=1, padding=1)
+        output_conv = nn.Conv2d(3, 1, 3, padding = 1)
         output_conv.bias.data.fill_(0.3)
         self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(128, 128, 3, stride=2, output_padding=1, padding = 1), # 128. 14, 14
+            nn.ConvTranspose2d(128, 128, 2, stride=2), # 128. 14, 14
             nn.ReLU(),
-            nn.ConvTranspose2d(128, 64, 3, stride=2, output_padding=1, padding=1),  # b, 64, 28, 28
+            nn.ConvTranspose2d(128, 64, 2, stride=2),  # b, 64, 28, 28
             nn.ReLU(),
-            nn.ConvTranspose2d(64, 32, 3, stride=2, output_padding=1, padding=1),  # b, 32, 56, 56
+            nn.ConvTranspose2d(64, 32, 2, stride=2),  # b, 32, 56, 56
             nn.ReLU(),
-            nn.ConvTranspose2d(32, 16, 3, stride=2, output_padding=1, padding=1),  # b, 32, 112, 112
+            nn.ConvTranspose2d(32, 16, 2, stride=2),  # b, 16, 112, 112
             nn.ReLU(),
-            output_conv,  # b, 1, 224, 224
+            nn.ConvTranspose2d(16, 8, 2, stride=2), # b, 8, 224, 224
+            nn.ReLU(),
+            nn.Conv2d(8, 3, 3, padding = 1), # b, 3, 224, 224
+            nn.ReLU(),
+            output_conv  # b, 1, 224, 224
             #nn.ReLU()
         )
 
@@ -152,7 +156,7 @@ class ActorCritic(nn.Module):
         depth_features = self.depth_autoencoder(depth)
         if torch.isnan(depth_features[0]).any():
             print("Depth_features  in eval is Nan!!!!!!!!!!!!!!!!!")
-            if writer:
+            if self.writer:
                 self.writer.add_image("train/random", depth+0.5, 0)
         action_probs = self.actor(depth_features[0], state)
 
