@@ -41,23 +41,31 @@ class AutoEncoder(nn.Module):
         self.encoder = nn.Sequential(
             nn.Conv2d(1, 16, 3, padding='same'),  # b, 16, 224, 224
             nn.ReLU(),
-            nn.Conv2d(16, 64, 3, padding=1, stride=2),  #  b, 64, 112, 112
+            nn.Conv2d(16, 32, 3, padding=1, stride=2),  #  b, 64, 112, 112
             nn.ReLU(),
-            nn.Conv2d(64, 128, 3, padding=1, stride = 2),  #  b, 64, 56, 56
+            nn.Conv2d(32, 64, 3, padding=1, stride = 2),  #  b, 64, 56, 56
             nn.ReLU(),
-            nn.Conv2d(128, 128, 3, padding=1, stride = 2),  #  b, 128, 28, 28
+            nn.Conv2d(64, 128, 3, padding=1, stride = 2),  #  b, 128, 28, 28
             nn.ReLU(),
             nn.Conv2d(128, 128, 3, padding=1, stride = 2),  #  b, 128, 14, 14
             nn.ReLU(),
             nn.Conv2d(128, 128, 3, padding=1, stride = 2),  #  b, 128, 7, 7
+            nn.ReLU(),
+            nn.Conv2d(128, 128, 3, padding = 1), 
+            nn.ReLU(),
+            nn.Conv2d(128, 128, 3, padding = 1), 
             nn.ReLU()
         )
         output_conv = nn.Conv2d(3, 1, 3, padding = 1)
         output_conv.bias.data.fill_(0.3)
         self.decoder = nn.Sequential(
+            nn.ConvTranspose2d(128, 128, 3, padding = 1, stride=1), # 128. 14, 14
+            nn.ReLU(),
             nn.ConvTranspose2d(128, 128, 2, stride=2), # 128. 14, 14
             nn.ReLU(),
-            nn.ConvTranspose2d(128, 64, 2, stride=2),  # b, 64, 28, 28
+            nn.ConvTranspose2d(128, 64, 3, padding = 1, stride=1),  # b, 64, 28, 28
+            nn.ReLU(),
+            nn.ConvTranspose2d(64, 64, 2, stride=2),  # b, 64, 28, 28
             nn.ReLU(),
             nn.ConvTranspose2d(64, 32, 2, stride=2),  # b, 32, 56, 56
             nn.ReLU(),
