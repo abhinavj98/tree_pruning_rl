@@ -298,7 +298,7 @@ class ur5GymEnv(gym.Env):
 
     @staticmethod
     def linearize_depth(depth, far_val, near_val):
-        depth_linearized = near_val / (far_val - (far_val -near_val) * depth)/depth
+        depth_linearized = near_val / (far_val - (far_val -near_val) * depth)
         return depth_linearized
 
     # @staticmethod
