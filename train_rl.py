@@ -139,8 +139,11 @@ def main():
             else:
                 gif = False
             depth = (torch.tensor(env.depth-0.5).to(args.device).unsqueeze(0))
+            print(depth)
             if torch.isnan(depth).any():
                 print("Depth is NAN!!!!!!!!!!!!!!!!!")
+            if (depth > 0.5).any() or (depth < -0.5).any():
+                print("DEPTH out of bounds")
             depth_features = ppo.get_depth_features(depth.unsqueeze(0))[0]
             if torch.isnan(depth_features).any():
                 print("Depth features in train_rl is Nan!!!!!!!!!!!!!!!!!")
@@ -193,12 +196,12 @@ def main():
                     writer.add_scalar("{}/train".format(k), v, i_episode)
                 ae_image = torchvision.utils.make_grid([depth+0.5, ppo.policy.depth_autoencoder(depth.unsqueeze(0))[1].squeeze(0)+0.5])
                 writer.add_image("train/ae", ae_image, i_episode)
-                # for i in loss_dict['random']:
-                #     if i.shape[0]==0:
-                #         break
-                #     ae_image = torchvision.utils.make_grid([i+0.5, ppo.policy.depth_autoencoder(i.unsqueeze(0))[1].squeeze(0)+0.5])
-                #     writer.add_image("train/random", ae_image, random_count)
-                #     random_count+=1
+                for i in loss_dict['random']:
+                    if i.shape[0]==0:
+                        break
+                    ae_image = torchvision.utils.make_grid([i+0.5, ppo.policy.depth_autoencoder(i.unsqueeze(0))[1].squeeze(0)+0.5])
+                    writer.add_image("train/random", ae_image, random_count)
+                    random_count+=1
                 del loss_dict['random'][:]
             writer.add_scalar("critic_value/train", critic_value, (i_episode-1)*args.mel+t)
             writer.add_scalar("reward/train", reward, (i_episode-1)*args.mel+t)
