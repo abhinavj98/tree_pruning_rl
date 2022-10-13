@@ -139,8 +139,11 @@ def main():
             else:
                 gif = False
             depth = (torch.tensor(env.depth-0.5).to(args.device).unsqueeze(0))
+            print(depth)
             if torch.isnan(depth).any():
                 print("Depth is NAN!!!!!!!!!!!!!!!!!")
+            if (depth > 0.5).any() or (depth < -0.5).any():
+                print("DEPTH out of bounds")
             depth_features = ppo.get_depth_features(depth.unsqueeze(0))[0]
             if torch.isnan(depth_features).any():
                 print("Depth features in train_rl is Nan!!!!!!!!!!!!!!!!!")
