@@ -101,7 +101,7 @@ class ur5GymEnv(gym.Env):
         self.end_effector_index = 7
         #self.table = pybullet.loadURDF(TABLE_URDF_PATH, [0.2, 0, -0.6300], [0, 0, 0, 1])
         flags = pybullet.URDF_USE_SELF_COLLISION
-        self.ur5 = pybullet.loadURDF(ROBOT_URDF_PATH, [0.7, 0, 0], [0, 0, 0, 1], flags=flags)
+        self.ur5 = pybullet.loadURDF(ROBOT_URDF_PATH, [0.8, 0, 0], [0, 0, 0, 1], flags=flags)
         self.num_joints = pybullet.getNumJoints(self.ur5)
         self.control_joints = ["shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint", "wrist_1_joint", "wrist_2_joint", "wrist_3_joint"]
         self.joint_type_list = ["REVOLUTE", "PRISMATIC", "SPHERICAL", "PLANAR", "FIXED"]
@@ -110,7 +110,7 @@ class ur5GymEnv(gym.Env):
             fov=42, aspect = width / height, nearVal=0.01,
             farVal=10.0)
         self.near_val = 0.01
-        self.far_val = 10
+        self.far_val = 3
         self.joints = dict()
         for i in range(self.num_joints):
             info = pybullet.getJointInfo(self.ur5, i)
@@ -470,7 +470,7 @@ class ur5GymEnv(gym.Env):
             reward += -0.1/150*scale
             collision = True
             #print('Collision!')
-        reward+= -0.1/150*scale
+        reward+= -0.3/150*scale
         # print(target_dist, reward)
         # input()
 
