@@ -22,11 +22,10 @@ class PositionalEncoder(nn.Module):
     
     def forward(self, x):
         # make embeddings relatively larger
-        x = x * np.sqrt(self.d_model)
         #add constant to embedding
         # seq_len = x.size(1)
-        # x = x + Variable(self.pe[:,:seq_len], \
-        # requires_grad=False).cuda()
+        x = x + Variable(self.pe[:,:seq_len], \
+        requires_grad=False).cuda()
         return x
 
 a = PositionalEncoder(4,56)

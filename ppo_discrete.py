@@ -64,7 +64,6 @@ class AutoEncoder(nn.Module):
         output_linear.bias.data.fill_(0.3)
         self.decoder = nn.Sequential(
             output_linear,
-            nn.LeakyReLU(),
         )
         # output_conv = nn.Conv2d(3, 1, 3, padding = 1)
         # output_conv.bias.data.fill_(0.3)
