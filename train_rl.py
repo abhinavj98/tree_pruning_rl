@@ -22,7 +22,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from torch.utils.tensorboard import SummaryWriter
 import cv2
-
+import torch.nn.functional as F
 title = 'PyBullet UR5 robot'
 
 def get_args():
@@ -115,16 +115,10 @@ def main():
     time_step = 0
     
     # training loop:
-    print('Starting training with learning_param:', args.lp)
-
-    layout = {
-    "RewardCritic": {
-        "Critic vs Reward": ["Multiline", ["critic_value/train", "reward/train"]],
-    },
-    }
+    print('Starting training with params:', args)
 
     random_count = 0
-    writer.add_custom_scalars(layout)
+   
     for i_episode in range(1, args.max_episodes+1):
         state = env.reset()
         ep_collision = 0
@@ -139,11 +133,12 @@ def main():
             else:
                 gif = False
             depth = (torch.tensor(env.depth-0.5).to(args.device).unsqueeze(0))
-            print(depth)
+            # print(depth)
             if torch.isnan(depth).any():
                 print("Depth is NAN!!!!!!!!!!!!!!!!!")
-            if (depth > 0.5).any() or (depth < -0.5).any():
+            if (depth > 0.51).any() or (depth < -0.51).any():
                 print("DEPTH out of bounds")
+                #print(depth)
             depth_features = ppo.get_depth_features(depth.unsqueeze(0))[0]
             if torch.isnan(depth_features).any():
                 print("Depth features in train_rl is Nan!!!!!!!!!!!!!!!!!")
@@ -194,14 +189,14 @@ def main():
                     if k == 'random':
                         continue
                     writer.add_scalar("{}/train".format(k), v, i_episode)
-                ae_image = torchvision.utils.make_grid([depth+0.5, ppo.policy.depth_autoencoder(depth.unsqueeze(0))[1].squeeze(0)+0.5])
+                ae_image = torchvision.utils.make_grid([F.interpolate((depth+0.5).unsqueeze(0), size = (56,56)).squeeze(0), ppo.policy.depth_autoencoder(depth.unsqueeze(0))[1].squeeze(0)+0.5])
                 writer.add_image("train/ae", ae_image, i_episode)
-                for i in loss_dict['random']:
-                    if i.shape[0]==0:
-                        break
-                    ae_image = torchvision.utils.make_grid([i+0.5, ppo.policy.depth_autoencoder(i.unsqueeze(0))[1].squeeze(0)+0.5])
-                    writer.add_image("train/random", ae_image, random_count)
-                    random_count+=1
+                # for i in loss_dict['random']:
+                #     if i.shape[0]==0:
+                #         break
+                #     ae_image = torchvision.utils.make_grid([i+0.5, ppo.policy.depth_autoencoder(i.unsqueeze(0))[1].squeeze(0)+0.5])
+                #     writer.add_image("train/random", ae_image, random_count)
+                #     random_count+=1
                 del loss_dict['random'][:]
             writer.add_scalar("critic_value/train", critic_value, (i_episode-1)*args.mel+t)
             writer.add_scalar("reward/train", reward, (i_episode-1)*args.mel+t)

@@ -13,7 +13,8 @@ from torch.distributions import Categorical
 import gym
 import numpy as np
 import torchvision.models as model
-
+import torch.nn.functional as F
+from torch.nn.parameter import Parameter
 from torch.utils.data import TensorDataset, DataLoader    
 # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -40,50 +41,101 @@ class AutoEncoder(nn.Module):
         super(AutoEncoder, self).__init__()
         self.encoder = nn.Sequential(
             nn.Conv2d(1, 16, 3, padding='same'),  # b, 16, 224, 224
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Conv2d(16, 32, 3, padding=1, stride=2),  #  b, 64, 112, 112
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Conv2d(32, 64, 3, padding=1, stride = 2),  #  b, 64, 56, 56
-            nn.ReLU(),
-            nn.Conv2d(64, 128, 3, padding=1, stride = 2),  #  b, 128, 28, 28
-            nn.ReLU(),
-            nn.Conv2d(128, 128, 3, padding=1, stride = 2),  #  b, 128, 14, 14
-            nn.ReLU(),
-            nn.Conv2d(128, 128, 3, padding=1, stride = 2),  #  b, 128, 7, 7
-            nn.ReLU(),
-            nn.Conv2d(128, 128, 3, padding = 1), 
-            nn.ReLU(),
-            nn.Conv2d(128, 128, 3, padding = 1), 
-            nn.ReLU()
+            nn.LeakyReLU(),
+            # nn.Conv2d(64, 128, 3, padding=1, stride = 2),  #  b, 128, 28, 28
+            # nn.ReLU(),
+            # nn.Conv2d(128, 128, 3, padding=1, stride = 2),  #  b, 128, 14, 14
+            # nn.ReLU(),
+            # nn.Conv2d(128, 128, 3, padding=1, stride = 2),  #  b, 128, 7, 7
+            # nn.ReLU(),
+            # nn.Conv2d(128, 128, 3, padding = 1), 
+            # nn.ReLU(),
+            # nn.Conv2d(128, 128, 3, padding = 1), 
+            # nn.ReLU()
         )
-        output_conv = nn.Conv2d(3, 1, 3, padding = 1)
-        output_conv.bias.data.fill_(0.3)
+        self.spatial_softmax = SpatialSoftmax(56, 56, 64)
+        # self.encoding = PositionalEncoding1D(64)
+        #64*2
+        output_linear = nn.Linear(128, 56*56)
+        output_linear.bias.data.fill_(0.3)
         self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(128, 128, 3, padding = 1, stride=1), # 128. 14, 14
-            nn.ReLU(),
-            nn.ConvTranspose2d(128, 128, 2, stride=2), # 128. 14, 14
-            nn.ReLU(),
-            nn.ConvTranspose2d(128, 64, 3, padding = 1, stride=1),  # b, 64, 28, 28
-            nn.ReLU(),
-            nn.ConvTranspose2d(64, 64, 2, stride=2),  # b, 64, 28, 28
-            nn.ReLU(),
-            nn.ConvTranspose2d(64, 32, 2, stride=2),  # b, 32, 56, 56
-            nn.ReLU(),
-            nn.ConvTranspose2d(32, 16, 2, stride=2),  # b, 16, 112, 112
-            nn.ReLU(),
-            nn.ConvTranspose2d(16, 8, 2, stride=2), # b, 8, 224, 224
-            nn.ReLU(),
-            nn.Conv2d(8, 3, 3, padding = 1), # b, 3, 224, 224
-            nn.ReLU(),
-            output_conv  # b, 1, 224, 224
-            #nn.ReLU()
+            output_linear,
+            nn.LeakyReLU(),
         )
+        # output_conv = nn.Conv2d(3, 1, 3, padding = 1)
+        # output_conv.bias.data.fill_(0.3)
+        # self.decoder = nn.Sequential(
+        #     nn.ConvTranspose2d(128, 128, 3, padding = 1, stride=1), # 128. 14, 14
+        #     nn.ReLU(),
+        #     nn.ConvTranspose2d(128, 128, 2, stride=2), # 128. 14, 14
+        #     nn.ReLU(),
+        #     nn.ConvTranspose2d(128, 64, 3, padding = 1, stride=1),  # b, 64, 28, 28
+        #     nn.ReLU(),
+        #     nn.ConvTranspose2d(64, 64, 2, stride=2),  # b, 64, 28, 28
+        #     nn.ReLU(),
+        #     nn.ConvTranspose2d(64, 32, 2, stride=2),  # b, 32, 56, 56
+        #     nn.ReLU(),
+        #     nn.ConvTranspose2d(32, 16, 2, stride=2),  # b, 16, 112, 112
+        #     nn.ReLU(),
+        #     nn.ConvTranspose2d(16, 8, 2, stride=2), # b, 8, 224, 224
+        #     nn.ReLU(),
+        #     nn.Conv2d(8, 3, 3, padding = 1), # b, 3, 224, 224
+        #     nn.ReLU(),
+        #     output_conv  # b, 1, 224, 224
+        #     #nn.ReLU()
+        # )
 
     def forward(self, x):
         encoding = self.encoder(x)
-        recon = self.decoder(encoding)
-        return encoding,recon
+        features = self.spatial_softmax(encoding)
+        # print((features))
+        # features = self.encoding(features)
+      
+        recon = self.decoder(features).reshape(-1,1,56,56)
+        return features,recon
 
+class SpatialSoftmax(torch.nn.Module):
+    def __init__(self, height, width, channel, temperature=None, data_format='NCHW'):
+        super(SpatialSoftmax, self).__init__()
+        self.data_format = data_format
+        self.height = height
+        self.width = width
+        self.channel = channel
+
+        if temperature:  
+            self.temperature = torch.ones(1)*temperature   
+        else:   
+            self.temperature = Parameter(torch.ones(1))   
+
+        pos_x, pos_y = np.meshgrid(
+                np.linspace(-1., 1., self.height),
+                np.linspace(-1., 1., self.width)
+                )
+        pos_x = torch.from_numpy(pos_x.reshape(self.height*self.width)).float()
+        pos_y = torch.from_numpy(pos_y.reshape(self.height*self.width)).float()
+        self.register_buffer('pos_x', pos_x)
+        self.register_buffer('pos_y', pos_y)
+
+    def forward(self, feature):
+        # Output:
+        #   (N, C*2) x_0 y_0 ...
+        if self.data_format == 'NHWC':
+            feature = feature.transpose(1, 3).tranpose(2, 3).view(-1, self.height*self.width)
+        else:
+            feature = feature.view(-1, self.height*self.width)
+
+        softmax_attention = F.softmax(feature/self.temperature, dim=-1)
+        expected_x = torch.sum(self.pos_x*softmax_attention, dim=1, keepdim=True)
+        expected_y = torch.sum(self.pos_y*softmax_attention, dim=1, keepdim=True)
+        expected_xy = torch.cat([expected_x, expected_y], 1)
+        feature_keypoints = expected_xy.view(-1,  self.channel*2)
+
+        return feature_keypoints
+    
 class Actor(nn.Module):
     def __init__(self, device, state_dim, emb_size, action_dim, action_std):
         super(Actor, self).__init__()
@@ -99,14 +151,14 @@ class Actor(nn.Module):
                     nn.Softmax(dim=-1) #discrete action
                     )
     def forward(self, image_features, state):
-        state = torch.cat((state, state, state),-1)
-        conv_head = self.conv(image_features)
-        if len(image_features.shape) == 4:
-            conv_head = conv_head.view(conv_head.shape[0], -1)
-        else:
-            conv_head = conv_head.view(1, -1)
-        dense_input = torch.cat((conv_head, state),-1) 
-        action = self.dense(dense_input)
+        state = torch.cat((image_features, state, state, state),-1)
+        # conv_head = self.conv(image_features)
+        # if len(image_features.shape) == 4:
+        #     conv_head = conv_head.view(conv_head.shape[0], -1)
+        # else:
+        #     conv_head = conv_head.view(1, -1)
+        # dense_input = torch.cat((conv_head, state),-1) 
+        action = self.dense(state)
         return action
 
 class Critic(nn.Module):
@@ -123,15 +175,15 @@ class Critic(nn.Module):
                 nn.Linear(emb_size, 1)
                 )
     def forward(self, image_features, state):
-        state = torch.cat((state, state, state),-1)
-        conv_head = self.conv(image_features)
-        if len(image_features.shape) == 4:
-            conv_head = conv_head.view(conv_head.shape[0], -1)
-        else:
-            conv_head = conv_head.view(1, -1)
+        state = torch.cat((image_features, state, state, state),-1)
+        # conv_head = self.conv(image_features)
+        # if len(image_features.shape) == 4:
+        #     conv_head = conv_head.view(conv_head.shape[0], -1)
+        # else:
+        #     conv_head = conv_head.view(1, -1)
 
-        dense_input = torch.cat((conv_head, state),1) 
-        value = self.dense(dense_input)
+        # dense_input = torch.cat((conv_head, state),1) 
+        value = self.dense(state)
         return value
 
 
@@ -187,7 +239,7 @@ class PPO:
         self.writer = writer
         self.device = self.args.device
         self.action_dim = self.env.action_dim
-        self.state_dim = self.env.observation_space.shape[0]*3 + 7*7*16  #!!!Get this right
+        self.state_dim = self.env.observation_space.shape[0]*3 + 128  #!!!Get this right
         self.policy = ActorCritic(self.device ,self.state_dim, self.args.emb_size, self.action_dim, self.args.action_std, writer = self.writer).to(self.device)
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=self.args.lr, betas=self.args.betas)
         
@@ -249,7 +301,9 @@ class PPO:
                 ratios = torch.exp(logprobs - old_logprobs_batch.detach())
                 # Finding Surrogate Loss:
                 advantages = old_rewards - state_values.detach()
-                ae_loss = self.aeMseLoss(old_depth_batch, autoencoder_io[1]) 
+                n,c, h, w = (old_depth_batch.shape)
+                #print(F.interpolate(old_depth_batch, size = (56,56)).shape, autoencoder_io[1].shape)
+                ae_loss = self.aeMseLoss(F.interpolate(old_depth_batch, size = (56,56)), autoencoder_io[1]) 
                 critic_loss = self.args.loss_value_c*self.MseLoss(state_values, old_rewards)
                 entropy_loss = self.args.loss_entropy_c*distribution_entropy  
                 surr1 = ratios * advantages
@@ -262,7 +316,7 @@ class PPO:
                 #print((old_depth_batch[(ae_loss>0.1)]).shape)
                # print(ae_loss)
                 
-                elem_aeloss = ae_loss.reshape(-1,1,224,224).mean(dim = [2,3], keepdim = True).squeeze().squeeze().squeeze()
+                elem_aeloss = ae_loss.reshape(-1,1,56,56).mean(dim = [2,3], keepdim = True).squeeze().squeeze().squeeze()
                 plot_dict['random'].extend(old_depth_batch[torch.where(elem_aeloss>10)])
                 plot_dict['surr1']-=surr1.mean()/self.args.K_epochs
                 plot_dict['surr2']-=surr2.mean()/self.args.K_epochs
@@ -281,3 +335,4 @@ class PPO:
         # Copy new weights into old policy:
         self.policy_old.load_state_dict(self.policy.state_dict())
         return plot_dict
+

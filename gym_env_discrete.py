@@ -454,8 +454,8 @@ class ur5GymEnv(gym.Env):
         self.target_reward = goal_reward(achieved_goal, achieved_previous_goal, desired_goal)
         self.target_dist = goal_distance(achieved_goal, desired_goal)
         scale = 5
-        reward += self.target_reward*20/150*scale #Mean around 0 -> Change in distance
-        dist_reward = self.target_reward*20/150*scale
+        reward += self.target_reward*20/100*scale #Mean around 0 -> Change in distance
+        dist_reward = self.target_reward*20/100*scale
         # task 0: reach object:
         terminate_reward = 0
         if self.target_dist < self.learning_param:  # and approach_velocity < 0.05:
@@ -467,10 +467,10 @@ class ur5GymEnv(gym.Env):
         # check collisions:
         collision = False
         if self.check_collisions():
-            reward += -0.1/150*scale
+            reward += -0.1/100*scale
             collision = True
             #print('Collision!')
-        reward+= -0.3/150*scale
+        reward+= -0.1/100*scale
         # print(target_dist, reward)
         # input()
 
