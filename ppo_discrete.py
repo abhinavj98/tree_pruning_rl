@@ -58,9 +58,10 @@ class AutoEncoder(nn.Module):
             # nn.ReLU()
         )
         self.spatial_softmax = SpatialSoftmax(56, 56, 64)
+        self.maxpool = nn.AdaptiveMaxPool2d(1)
         # self.encoding = PositionalEncoding1D(64)
         #64*2
-        output_linear = nn.Linear(128, 56*56)
+        output_linear = nn.Linear(128+64, 56*56)
         output_linear.bias.data.fill_(0.3)
         self.decoder = nn.Sequential(
             output_linear,
@@ -90,7 +91,10 @@ class AutoEncoder(nn.Module):
 
     def forward(self, x):
         encoding = self.encoder(x)
-        features = self.spatial_softmax(encoding)
+        argmax = self.spatial_softmax(encoding)
+        maxval = self.maxpool(encoding).squeeze(-1).squeeze(-1)
+        #print(features.shape)
+        features = state = torch.cat((argmax, maxval),-1)
         # print((features))
         # features = self.encoding(features)
       
@@ -238,7 +242,7 @@ class PPO:
         self.writer = writer
         self.device = self.args.device
         self.action_dim = self.env.action_dim
-        self.state_dim = self.env.observation_space.shape[0]*3 + 128  #!!!Get this right
+        self.state_dim = self.env.observation_space.shape[0]*3 + 128 + 64  #!!!Get this right
         self.policy = ActorCritic(self.device ,self.state_dim, self.args.emb_size, self.action_dim, self.args.action_std, writer = self.writer).to(self.device)
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=self.args.lr, betas=self.args.betas)
         
