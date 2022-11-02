@@ -12,3 +12,5 @@ newAE/
 shallrun/
 log*/
 *run*
+saved_model/
+runs/

@@ -192,6 +192,7 @@ class Critic(nn.Module):
 
 class ActorCritic(nn.Module):
     def __init__(self, device, state_dim, emb_size, action_dim, action_std, writer = None):
+        self.writer = writer
         self.device = device
         super(ActorCritic, self).__init__()
           # autoencoder
@@ -283,7 +284,7 @@ class PPO:
         old_logprobs = torch.squeeze(torch.stack(memory.logprobs), 1).to(self.device).detach()
         old_depth = torch.squeeze(torch.stack(memory.depth), 0).to(self.device).detach()
         train_ds = TensorDataset(old_states, old_actions, old_logprobs, old_depth, rewards)
-        train_dataloader = DataLoader(train_ds, batch_size=64, shuffle=True)
+        train_dataloader = DataLoader(train_ds, batch_size=32, shuffle=True)
          #Plotting
         plot_dict = {}
         plot_dict['surr2'] =  0
