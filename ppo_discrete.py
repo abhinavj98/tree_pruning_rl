@@ -18,6 +18,13 @@ from torch.nn.parameter import Parameter
 from torch.utils.data import TensorDataset, DataLoader    
 # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+class Reshape(nn.Module):
+    def __init__(self, *args):
+        super(Reshape, self).__init__()
+        self.shape = args
+
+    def forward(self, x):
+        return x.view(self.shape)
 class Memory:
     def __init__(self):
         self.actions = []
@@ -46,6 +53,7 @@ class AutoEncoder(nn.Module):
             nn.LeakyReLU(),
             nn.Conv2d(32, 64, 3, padding=1, stride = 2),  #  b, 64, 56, 56
             nn.LeakyReLU(),
+            nn.Conv2d(64, 128, 3, padding='same')
             # nn.Conv2d(64, 128, 3, padding=1, stride = 2),  #  b, 128, 28, 28
             # nn.ReLU(),
             # nn.Conv2d(128, 128, 3, padding=1, stride = 2),  #  b, 128, 14, 14
@@ -57,14 +65,19 @@ class AutoEncoder(nn.Module):
             # nn.Conv2d(128, 128, 3, padding = 1), 
             # nn.ReLU()
         )
-        self.spatial_softmax = SpatialSoftmax(56, 56, 64)
+        self.spatial_softmax = SpatialSoftmax(56, 56, 128)
         self.maxpool = nn.AdaptiveMaxPool2d(1)
         # self.encoding = PositionalEncoding1D(64)
         #64*2
-        output_linear = nn.Linear(128+64, 56*56)
-        output_linear.bias.data.fill_(0.3)
+        output_linear = nn.Linear((128+64)*2, 28*28*4)
+       # output_linear.bias.data.fill_(0.5)
         self.decoder = nn.Sequential(
             output_linear,
+            nn.ReLU(),
+            Reshape(-1, 4, 28, 28),
+            nn.ConvTranspose2d(4, 2, 2, stride=2),
+            nn.ReLU(),  # b, 2, 56, 56
+            nn.Conv2d(2, 1, 3, padding = 'same')
         )
         # output_conv = nn.Conv2d(3, 1, 3, padding = 1)
         # output_conv.bias.data.fill_(0.3)
@@ -243,7 +256,7 @@ class PPO:
         self.writer = writer
         self.device = self.args.device
         self.action_dim = self.env.action_dim
-        self.state_dim = self.env.observation_space.shape[0]*3 + 128 + 64  #!!!Get this right
+        self.state_dim = self.env.observation_space.shape[0]*3 + 128*2 + 128  #!!!Get this right
         self.policy = ActorCritic(self.device ,self.state_dim, self.args.emb_size, self.action_dim, self.args.action_std, writer = self.writer).to(self.device)
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=self.args.lr, betas=self.args.betas)
         
@@ -319,6 +332,8 @@ class PPO:
                 #Make plotting
                 #print((old_depth_batch[(ae_loss>0.1)]).shape)
                # print(ae_loss)
+                # ae_loss = self.aeMseLoss(F.interpolate(old_depth_batch, size = (56,56)), autoencoder_io[1]) 
+                # loss = ae_loss.mean()
                 
                 elem_aeloss = ae_loss.reshape(-1,1,56,56).mean(dim = [2,3], keepdim = True).squeeze().squeeze().squeeze()
                 plot_dict['random'].extend(old_depth_batch[torch.where(elem_aeloss>10)])
@@ -340,3 +355,77 @@ class PPO:
         self.policy_old.load_state_dict(self.policy.state_dict())
         return plot_dict
 
+# class Variance(Stat):
+#     '''
+#     Running computation of mean and variance. Use this when you just need
+#     basic stats without covariance.
+#     '''
+
+#     def __init__(self, state=None):
+#         if state is not None:
+#             return super().__init__(state)
+#         self.count = 0
+#         self.batchcount = 0
+#         self._mean = None
+#         self.v_cmom2 = None
+#         self.data_shape = None
+
+#     def add(self, a):
+#         a = self._normalize_add_shape(a)
+#         if len(a) == 0:
+#             return
+#         batch_count = a.shape[0]
+#         batch_mean = a.sum(0) / batch_count
+#         centered = a - batch_mean
+#         self.batchcount += 1
+#         # Initial batch.
+#         if self._mean is None:
+#             self.count = batch_count
+#             self._mean = batch_mean
+#             self.v_cmom2 = centered.pow(2).sum(0)
+#             return
+#         # Update a batch using Chan-style update for numerical stability.
+#         oldcount = self.count
+#         self.count += batch_count
+#         new_frac = float(batch_count) / self.count
+#         # Update the mean according to the batch deviation from the old mean.
+#         delta = batch_mean.sub_(self._mean).mul_(new_frac)
+#         self._mean.add_(delta)
+#         # Update the variance using the batch deviation
+#         self.v_cmom2.add_(centered.pow(2).sum(0))
+#         self.v_cmom2.add_(delta.pow_(2).mul_(new_frac * oldcount))
+
+#     def size(self):
+#         return self.count
+
+#     def mean(self):
+#         return self._restore_result_shape(self._mean)
+
+#     def variance(self, unbiased=True):
+#         return self._restore_result_shape(self.v_cmom2
+#                 / (self.count - (1 if unbiased else 0)))
+
+#     def stdev(self, unbiased=True):
+#         return self.variance(unbiased=unbiased).sqrt()
+
+#     def to_(self, device):
+#         if self._mean is not None:
+#             self._mean = self._mean.to(device)
+#         if self.v_cmom2 is not None:
+#             self.v_cmom2 = self.v_cmom2.to(device)
+
+#     def load_state_dict(self, state):
+#         self.count = state['count']
+#         self.batchcount = state['batchcount']
+#         self._mean = torch.from_numpy(state['mean'])
+#         self.v_cmom2 = torch.from_numpy(state['cmom2'])
+#         self.data_shape = None if state['data_shape'] is None else tuple(state['data_shape'])
+
+#     def state_dict(self):
+#         return dict(
+#             constructor=self.__module__ + '.' + self.__class__.__name__ + '()',
+#             count=self.count,
+#             data_shape=self.data_shape and tuple(self.data_shape),
+#             batchcount=self.batchcount,
+#             mean=self._mean.cpu().numpy(),
+#             cmom2=self.v_cmom2.cpu().numpy())
