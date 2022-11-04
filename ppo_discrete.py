@@ -168,6 +168,7 @@ class Actor(nn.Module):
                     )
     def forward(self, image_features, state):
         state = torch.cat((image_features, state, state, state),-1)
+      #  print(state.shape)
         # conv_head = self.conv(image_features)
         # if len(image_features.shape) == 4:
         #     conv_head = conv_head.view(conv_head.shape[0], -1)
@@ -228,7 +229,7 @@ class ActorCritic(nn.Module):
         action_logprob = distribution.log_prob(action)
         return action.detach(), action_logprob.detach()
     
-    def evaluate(self, state, depth, action):
+    def evaluate(self, state, depth, action, num_episode):
         if torch.isnan(depth).any():
             print("Depth Nan in eval")
         depth_features = self.depth_autoencoder(depth)
@@ -236,13 +237,23 @@ class ActorCritic(nn.Module):
             print("Depth_features  in eval is Nan!!!!!!!!!!!!!!!!!")
             if self.writer:
                 self.writer.add_image("train/random", depth+0.5, 0)
-        action_probs = self.actor(depth_features[0], state)
-
-        distribution = Categorical(action_probs)
         
-        action_logprobs = distribution.log_prob(action)
-        distribution_entropy = distribution.entropy()
-        state_value = self.critic(depth_features[0], state)
+        if num_episode > 2000:
+            action_probs = self.actor(depth_features[0].detach(), state)
+
+            distribution = Categorical(action_probs)
+            
+            action_logprobs = distribution.log_prob(action)
+            distribution_entropy = distribution.entropy()
+            state_value = self.critic(depth_features[0].detach(), state)
+        else:
+            action_probs = self.actor(depth_features[0].detach()*0, state)
+
+            distribution = Categorical(action_probs)
+            
+            action_logprobs = distribution.log_prob(action)
+            distribution_entropy = distribution.entropy()
+            state_value = self.critic(depth_features[0].detach()*0, state)
         
         return action_logprobs, torch.squeeze(state_value), distribution_entropy, depth_features
 
@@ -275,7 +286,7 @@ class PPO:
         return self.policy_old.depth_autoencoder(img)
 
     
-    def update(self, memory):
+    def update(self, memory, num_episode):
         # Monte Carlo estimate of rewards:
         rewards = []
         discounted_reward = 0
@@ -312,7 +323,7 @@ class PPO:
             for old_states_batch, old_actions_batch, old_logprobs_batch, old_depth_batch, old_rewards in train_dataloader:
 
                 # Evaluating old actions and values :
-                logprobs, state_values, distribution_entropy, autoencoder_io = self.policy.evaluate(old_states_batch, old_depth_batch, old_actions_batch)
+                logprobs, state_values, distribution_entropy, autoencoder_io = self.policy.evaluate(old_states_batch, old_depth_batch, old_actions_batch, num_episode)
                 # Finding the ratio (pi_theta / pi_theta__old):
                 ratios = torch.exp(logprobs - old_logprobs_batch.detach())
                 # Finding Surrogate Loss:

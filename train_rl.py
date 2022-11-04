@@ -150,8 +150,10 @@ def main():
             memory.depth.append(depth)
             memory.states.append(state)
             memory.depth_features.append(depth_features.squeeze())
-
-            action, action_logprob = ppo.select_action(depth_features, state)
+            if i_episode < 2000:
+                action, action_logprob = ppo.select_action(depth_features*0, state)
+            else:
+                action, action_logprob = ppo.select_action(depth_features, state)
 
             memory.actions.append(torch.Tensor(action))
             memory.logprobs.append(action_logprob)
@@ -182,7 +184,7 @@ def main():
                 continue
             
             if time_step % args.update_timestep == 0:
-                loss_dict = ppo.update(memory)
+                loss_dict = ppo.update(memory, i_episode)
                 memory.clear_memory()
                 time_step = 0
                 for k,v in loss_dict.items():
