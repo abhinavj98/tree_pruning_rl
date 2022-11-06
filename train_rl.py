@@ -191,7 +191,7 @@ def main():
                     if k == 'random':
                         continue
                     writer.add_scalar("{}/train".format(k), v, i_episode)
-                ae_image = torchvision.utils.make_grid([F.interpolate((depth+0.5).unsqueeze(0), size = (56,56)).squeeze(0), ppo.policy.depth_autoencoder(depth.unsqueeze(0))[1].squeeze(0)+0.5])
+                ae_image = torchvision.utils.make_grid([F.interpolate((depth+0.5).unsqueeze(0), size = (112,112)).squeeze(0), ppo.policy.depth_autoencoder(depth.unsqueeze(0))[1].squeeze(0)+0.5])
                 writer.add_image("train/ae", ae_image, i_episode)
                 # for i in loss_dict['random']:
                 #     if i.shape[0]==0:

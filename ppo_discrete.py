@@ -43,7 +43,60 @@ class Memory:
         del self.depth_features[:]
         del self.depth[:]
 
-class AutoEncoder(nn.Module):
+class AutoEncoderGAP(nn.Module):
+    def __init__(self):
+        super(AutoEncoderGAP, self).__init__()
+        self.encoder = nn.Sequential(
+            nn.Conv2d(1, 16, 3, padding='same'),  # b, 16, 224, 224
+            nn.ReLU(),
+            nn.Conv2d(16, 32, 3, padding=1, stride=2),  #  b, 64, 112, 112
+            nn.ReLU(),
+            nn.Conv2d(32, 64, 3, padding=1, stride = 2),  #  b, 64, 56, 56
+            nn.ReLU(),
+            nn.Conv2d(64, 128, 3, padding=1, stride = 2),  #  b, 128, 28, 28
+            nn.ReLU(),
+            nn.Conv2d(128, 128, 3, padding=1, stride = 2),  #  b, 128, 14, 14
+            nn.ReLU(),
+            nn.Conv2d(128, 128, 3, padding=1, stride = 2),  #  b, 128, 7, 7
+            nn.ReLU(),
+            nn.Conv2d(128, 128, 3, padding = 1), 
+            nn.ReLU(),
+            nn.Conv2d(128, 128, 3, padding = 1), 
+            nn.MaxPool2d(7),
+            Reshape(-1, 128)
+        )
+        output_conv = nn.Conv2d(3, 1, 3, padding = 1)
+        # output_conv.bias.data.fill_(0.3)
+        self.decoder = nn.Sequential(
+            nn.Linear(128, 7*7*32),
+            Reshape(-1, 32, 7, 7),
+            nn.ConvTranspose2d(32, 32, 3, padding = 1, stride=1), # 32. 14, 14
+            nn.ReLU(),
+            nn.ConvTranspose2d(32, 32, 2, stride=2), # 32. 14, 14
+            nn.ReLU(),
+            nn.ConvTranspose2d(32, 16, 3, padding = 1, stride=1),  # b, 16, 28, 28
+            nn.ReLU(),
+            nn.ConvTranspose2d(16, 16, 2, stride=2),  # b, 16, 28, 28
+            nn.ReLU(),
+            nn.ConvTranspose2d(16, 8, 2, stride=2),  # b, 8, 56, 56
+            nn.ReLU(),
+            nn.ConvTranspose2d(8, 8, 2, stride=2),  # b, 16, 112, 112
+            # nn.ReLU(),
+            # nn.ConvTranspose2d(16, 8, 2, stride=2), # b, 8, 224, 224
+            # nn.ReLU(),
+            nn.Conv2d(8, 3, 3, padding = 1), # b, 3, 224, 224
+            nn.ReLU(),
+            output_conv, # b, 1, 224, 224
+            #nn.ReLU()
+        )
+
+    def forward(self, observation):
+        # print(observation)
+        encoding = self.encoder(observation)
+        recon = self.decoder(encoding)
+        return encoding,recon
+
+class SpatialAutoEncoder(nn.Module):
     def __init__(self):
         super(AutoEncoder, self).__init__()
         self.encoder = nn.Sequential(
@@ -209,7 +262,7 @@ class ActorCritic(nn.Module):
         self.device = device
         super(ActorCritic, self).__init__()
           # autoencoder
-        self.depth_autoencoder = AutoEncoder().to(self.device)
+        self.depth_autoencoder = AutoEncoderGAP().to(self.device)
         # actor
         self.actor = Actor(device, state_dim, emb_size, action_dim, action_std).to(self.device)
         # critic
@@ -266,7 +319,7 @@ class PPO:
         self.writer = writer
         self.device = self.args.device
         self.action_dim = self.env.action_dim
-        self.state_dim = self.env.observation_space.shape[0]*3 + 128*2 + 128  #!!!Get this right
+        self.state_dim = self.env.observation_space.shape[0]*3 + 128 #!!!Get this right
         self.policy = ActorCritic(self.device ,self.state_dim, self.args.emb_size, self.action_dim, self.args.action_std, writer = self.writer).to(self.device)
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=self.args.lr, betas=self.args.betas)
         
@@ -330,7 +383,7 @@ class PPO:
                 advantages = old_rewards - state_values.detach()
                 n,c, h, w = (old_depth_batch.shape)
                 #print(F.interpolate(old_depth_batch, size = (56,56)).shape, autoencoder_io[1].shape)
-                ae_loss = self.aeMseLoss(F.interpolate(old_depth_batch, size = (56,56)), autoencoder_io[1]) 
+                ae_loss = self.aeMseLoss(F.interpolate(old_depth_batch, size = (112,112)), autoencoder_io[1]) 
                 critic_loss = self.args.loss_value_c*self.MseLoss(state_values, old_rewards)
                 entropy_loss = self.args.loss_entropy_c*distribution_entropy  
                 surr1 = ratios * advantages
