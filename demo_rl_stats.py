@@ -22,7 +22,7 @@ def get_args():
     arg('--render', action='store_true', default=False, help='render the environment')
     arg('--randObjPos', action='store_true', default=True, help='fixed object position to pick up')
     arg('--mel', type=int, default=100, help='max episode length')
-    arg('--repeat', type=int, default=1, help='repeat action')
+    arg('--repeat', type=int, default=2, help='repeat action')
     arg('--simgrip', action='store_true', default=False, help='simulated gripper')
     arg('--task', type=int, default=0, help='task to learn: 0 move, 1 pick-up, 2 drop')
     arg('--lp', type=float, default=0.1, help='learning parameter for task')
@@ -75,9 +75,9 @@ for ep in range(1, args.n_episodes+1):
     state = env.reset()
     for t in range(args.mel):
         state = torch.FloatTensor(state.reshape(1, -1)).to(args.device)
-        rgb = torch.FloatTensor(env.rgb).to(args.device)
-        #state = torch.FloatTensor(state.reshape(1, -1)).to(args.device)
-        action = ppo.policy_old.act(rgb, state, memory)
+        depth = (torch.tensor(env.depth-0.5).to(args.device).unsqueeze(0))
+        depth_features = ppo.get_depth_features(depth.unsqueeze(0))[0]
+        action, action_logprob = ppo.select_action(depth_features, state)
         action = action.data.cpu().numpy().flatten()
         state, reward, done, _, collision = env.step(action)
         ep_reward += reward
