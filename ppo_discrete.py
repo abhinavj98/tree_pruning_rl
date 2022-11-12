@@ -98,7 +98,7 @@ class AutoEncoderGAP(nn.Module):
 
 class SpatialAutoEncoder(nn.Module):
     def __init__(self):
-        super(AutoEncoder, self).__init__()
+        super(SpatialAutoEncoder, self).__init__()
         self.encoder = nn.Sequential(
             nn.Conv2d(1, 16, 3, padding='same'),  # b, 16, 224, 224
             nn.LeakyReLU(),
@@ -106,7 +106,7 @@ class SpatialAutoEncoder(nn.Module):
             nn.LeakyReLU(),
             nn.Conv2d(32, 64, 3, padding=1, stride = 2),  #  b, 64, 56, 56
             nn.LeakyReLU(),
-            nn.Conv2d(64, 128, 3, padding='same')
+            nn.Conv2d(64, 32, 3, padding='same')
             # nn.Conv2d(64, 128, 3, padding=1, stride = 2),  #  b, 128, 28, 28
             # nn.ReLU(),
             # nn.Conv2d(128, 128, 3, padding=1, stride = 2),  #  b, 128, 14, 14
@@ -118,19 +118,37 @@ class SpatialAutoEncoder(nn.Module):
             # nn.Conv2d(128, 128, 3, padding = 1), 
             # nn.ReLU()
         )
-        self.spatial_softmax = SpatialSoftmax(56, 56, 128)
+        self.spatial_softmax = SpatialSoftmax(56, 56, 32)
         self.maxpool = nn.AdaptiveMaxPool2d(1)
         # self.encoding = PositionalEncoding1D(64)
         #64*2
-        output_linear = nn.Linear((128+64)*2, 28*28*4)
+        output_conv = nn.Conv2d(3, 1, 3, padding = 1)
+        output_linear = nn.Linear(32*2 + 32, 7*7*16)
        # output_linear.bias.data.fill_(0.5)
         self.decoder = nn.Sequential(
             output_linear,
             nn.ReLU(),
-            Reshape(-1, 4, 28, 28),
-            nn.ConvTranspose2d(4, 2, 2, stride=2),
-            nn.ReLU(),  # b, 2, 56, 56
-            nn.Conv2d(2, 1, 3, padding = 'same')
+            Reshape(-1, 16, 7, 7),
+            nn.ConvTranspose2d(16, 32, 3, padding = 1, stride=1), # 32. 14, 14
+            nn.ReLU(),
+            nn.ConvTranspose2d(32, 32, 2, stride=2), # 32. 14, 14
+            nn.ReLU(),
+            nn.ConvTranspose2d(32, 16, 3, padding = 1, stride=1),  # b, 16, 28, 28
+            nn.ReLU(),
+            nn.ConvTranspose2d(16, 16, 2, stride=2),  # b, 16, 28, 28
+            nn.ReLU(),
+            nn.ConvTranspose2d(16, 8, 2, stride=2),  # b, 8, 56, 56
+            nn.ReLU(),
+            nn.ConvTranspose2d(8, 8, 2, stride=2),  # b, 16, 112, 112
+            # nn.ReLU(),
+            # nn.ConvTranspose2d(16, 8, 2, stride=2), # b, 8, 224, 224
+            # nn.ReLU(),
+            nn.Conv2d(8, 3, 3, padding = 1), # b, 3, 224, 224
+            nn.ReLU(),
+            nn.Conv2d(3, 3, 3, padding = 1), # b, 3, 224, 224
+            nn.ReLU(),
+            output_conv, # b, 1, 224, 224
+            #nn.ReLU()
         )
         # output_conv = nn.Conv2d(3, 1, 3, padding = 1)
         # output_conv.bias.data.fill_(0.3)
@@ -262,7 +280,7 @@ class ActorCritic(nn.Module):
         self.device = device
         super(ActorCritic, self).__init__()
           # autoencoder
-        self.depth_autoencoder = AutoEncoderGAP().to(self.device)
+        self.depth_autoencoder = SpatialAutoEncoder().to(self.device)
         # actor
         self.actor = Actor(device, state_dim, emb_size, action_dim, action_std).to(self.device)
         # critic
@@ -319,7 +337,7 @@ class PPO:
         self.writer = writer
         self.device = self.args.device
         self.action_dim = self.env.action_dim
-        self.state_dim = self.env.observation_space.shape[0]*3 + 128 #!!!Get this right
+        self.state_dim = self.env.observation_space.shape[0]*3 + 32*3 #!!!Get this right
         self.policy = ActorCritic(self.device ,self.state_dim, self.args.emb_size, self.action_dim, self.args.action_std, writer = self.writer).to(self.device)
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=self.args.lr, betas=self.args.betas)
         
@@ -398,7 +416,7 @@ class PPO:
                 # ae_loss = self.aeMseLoss(F.interpolate(old_depth_batch, size = (56,56)), autoencoder_io[1]) 
                 # loss = ae_loss.mean()
                 
-                elem_aeloss = ae_loss.reshape(-1,1,56,56).mean(dim = [2,3], keepdim = True).squeeze().squeeze().squeeze()
+                elem_aeloss = ae_loss.reshape(-1,1,112,112).mean(dim = [2,3], keepdim = True).squeeze().squeeze().squeeze()
                 plot_dict['random'].extend(old_depth_batch[torch.where(elem_aeloss>10)])
                 plot_dict['surr1']-=surr1.mean()/self.args.K_epochs
                 plot_dict['surr2']-=surr2.mean()/self.args.K_epochs

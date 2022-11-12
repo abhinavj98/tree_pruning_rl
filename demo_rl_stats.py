@@ -67,7 +67,7 @@ ppo.policy_old.load_state_dict(torch.load(args.trained_file, map_location = torc
 ppo.policy_old.to()
 memory = Memory()
 avg_reward = []
-num_collisions = 0
+num_collisions = []
 avg_distance = []
 # running test:
 for ep in range(1, args.n_episodes+1):
@@ -91,7 +91,7 @@ for ep in range(1, args.n_episodes+1):
         if done:
             break
         
-    print('Episode: {}\tSteps: {}\tReward: {}'.format(ep, t, int(ep_reward)))
+    print('Episode: {}\tSteps: {}\tReward: {}\t Collisions'.format(ep, t, int(ep_reward)))
     print(env.target_dist)
     avg_reward.append(ep_reward)
     ep_reward = 0
