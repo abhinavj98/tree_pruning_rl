@@ -99,6 +99,9 @@ class AutoEncoderGAP(nn.Module):
 class SpatialAutoEncoder(nn.Module):
     def __init__(self):
         super(SpatialAutoEncoder, self).__init__()
+        self.latent_space = 32
+        self.output_size = 112
+        self.input_size = 224
         self.encoder = nn.Sequential(
             nn.Conv2d(1, 16, 3, padding='same'),  # b, 16, 224, 224
             nn.LeakyReLU(),
@@ -135,7 +138,7 @@ class SpatialAutoEncoder(nn.Module):
             nn.ReLU(),
             nn.ConvTranspose2d(32, 16, 3, padding = 1, stride=1),  # b, 16, 28, 28
             nn.ReLU(),
-            nn.ConvTranspose2d(16, 16, 2, stride=2),  # b, 16, 28, 28
+            nn.ConvTranspose2d(16, 16, 2, stride=2),  # b, 16, 28,  28
             nn.ReLU(),
             nn.ConvTranspose2d(16, 8, 2, stride=2),  # b, 8, 56, 56
             nn.ReLU(),
@@ -182,7 +185,7 @@ class SpatialAutoEncoder(nn.Module):
         # print((features))
         # features = self.encoding(features)
       
-        recon = self.decoder(features).reshape(-1,1,56,56)
+        recon = self.decoder(features).reshape(-1,1,self.output_size,self.output_size)
         return features,recon
 
 class SpatialSoftmax(torch.nn.Module):
