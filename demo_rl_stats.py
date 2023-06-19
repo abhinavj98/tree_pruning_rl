@@ -22,7 +22,7 @@ def get_args():
     arg('--render', action='store_true', default=False, help='render the environment')
     arg('--randObjPos', action='store_true', default=True, help='fixed object position to pick up')
     arg('--mel', type=int, default=100, help='max episode length')
-    arg('--repeat', type=int, default=2, help='repeat action')
+    arg('--repeat', type=int, default=1, help='repeat action')
     arg('--simgrip', action='store_true', default=False, help='simulated gripper')
     arg('--task', type=int, default=0, help='task to learn: 0 move, 1 pick-up, 2 drop')
     arg('--lp', type=float, default=0.1, help='learning parameter for task')
@@ -60,7 +60,7 @@ torch.manual_seed(args.seed)
 args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # memory = Memory()
-ppo = PPO(args, env)
+ppo = PPO(args, env, None)
 
 print('Loading model:', args.trained_file)
 ppo.policy_old.load_state_dict(torch.load(args.trained_file, map_location = torch.device(args.device) ))
@@ -70,33 +70,35 @@ avg_reward = []
 num_collisions = []
 avg_distance = []
 # running test:
-for ep in range(1, args.n_episodes+1):
-    ep_reward = 0
-    state = env.reset()
-    for t in range(args.mel):
-        state = torch.FloatTensor(state.reshape(1, -1)).to(args.device)
-        depth = (torch.tensor(env.depth-0.5).to(args.device).unsqueeze(0))
-        depth_features = ppo.get_depth_features(depth.unsqueeze(0))[0]
-        action, action_logprob = ppo.select_action(depth_features, state)
-        action = action.data.cpu().numpy().flatten()
-        state, reward, done, _, collision = env.step(action)
-        ep_reward += reward
-        num_collisions+=collision
-        if t == args.mel-1:
-            avg_distance.append(env.target_dist)
-
-        # print(t, env.target_dist)
-        # input()
- 
-        if done:
-            break
-        
-    print('Episode: {}\tSteps: {}\tReward: {}\t Collisions'.format(ep, t, int(ep_reward)))
-    print(env.target_dist)
-    avg_reward.append(ep_reward)
-    ep_reward = 0
-    env.close()
-print("Average reward over {} episodes: {} and  with variance {}".format(args.n_episodes, statistics.mean(avg_reward), statistics.stdev(avg_reward)))
-print("Num collisions over {} episodes: {}".format(args.n_episodes, num_collisions))
-print("Avg distance over {} episodes: {} and  with variance {}".format(args.n_episodes, statistics.mean(avg_distance), statistics.stdev(avg_distance)))
+for df in [1, 0]:
+	for ep in range(1, args.n_episodes+1):
+		print(ep)
+		ep_reward = 0
+		ep_collision = 0
+		state = env.reset()
+		for t in range(args.mel):
+			state = torch.FloatTensor(state.reshape(1, -1)).to(args.device)
+			depth = (torch.tensor(env.depth-0.5).to(args.device).unsqueeze(0))
+			depth_features = ppo.get_depth_features(depth.unsqueeze(0))[0]
+			action, action_logprob = ppo.select_action(depth_features*df, state)
+			state, reward, done, _, _  = env.step(action)
+			ep_reward += float(reward[0])
+			ep_collision+=int(reward[3])
+			if t == args.mel-1:
+				avg_distance.append(env.target_dist)
+				num_collisions.append(ep_collision)
+			# print(t, env.target_dist)
+			# input()
+		 
+			if done:
+				break
+			
+		print('Episode: {}\tSteps: {}\tReward: {}i\tCollisions: {}'.format(ep, t, ep_reward, ep_collision))
+		print("avg_dist: ", env.target_dist)
+		avg_reward.append(ep_reward)
+		ep_reward = 0
+		#env.close()
+	print("Average reward over {} episodes: {} and  with variance {}".format(args.n_episodes, statistics.mean(avg_reward), statistics.stdev(avg_reward)))
+	print("Num collisions over {} episodes: {}".format(args.n_episodes, sum(num_collisions)))
+	print("Avg distance over {} episodes: {} and  with variance {}".format(args.n_episodes, statistics.mean(avg_distance), statistics.stdev(avg_distance)))
 

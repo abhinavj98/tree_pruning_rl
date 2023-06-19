@@ -153,6 +153,7 @@ def main():
             if i_episode < 2000:
                 action, action_logprob = ppo.select_action(depth_features*0, state)
             else:
+                ppo.args.loss_ae_c = 0
                 action, action_logprob = ppo.select_action(depth_features, state)
 
             memory.actions.append(torch.Tensor(action))
